@@ -22,6 +22,9 @@
     "@mastra/libsql": "latest",
     "@mastra/memory": "latest",
     "@mastra/observability": "latest",
+    "@mastra/pinecone": "^1.1.0",
+    "@supabase/supabase-js": "^2.112.3",
+    "ai": "^7.0.66",
     "zod": "^4.4.3"
   },
   "devDependencies": {

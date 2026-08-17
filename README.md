@@ -1,58 +1,158 @@
 # luna-nova
 
-Welcome to your new [Mastra](https://mastra.ai) project! We're excited to see what you build.
+Luna, a atendente virtual da [Buyticket](https://www.buyticketbrasil.com), construída com [Mastra](https://mastra.ai).
 
-This starter provides you with a general-purpose Mastra agent that can research current information, manage multi-step tasks, work with local files, run approved shell commands, and create recurring schedules.
+Luna responde clientes via WhatsApp com base em habilidades (playbooks operacionais) e bases de conhecimento (F.A.Q.), pode abrir tarefas para o time humano e busca dados do cliente no Zendesk. Toda resposta passa por um segundo agente (guardrail) que decide se ela pode ir direto pro cliente ou se a conversa precisa de um humano.
 
-## Features
+## Agentes registrados
 
-- A project-level `workspace/` for files and command execution
-- Approval gates for file changes, deletions, and shell commands
-- Conversation memory, generated thread titles, and task tracking
-- Built-in web search and direct web page fetching
-- Recurring schedules that persist across restarts
-- Local libSQL storage and DuckDB observability, with optional Turso storage
-- A bundled Mastra skill that helps coding agents use current Mastra APIs
+| Agente (id na API)      | O que faz                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `luna`                  | Agente principal. Ver [`src/mastra/agents/luna/AGENTS.md`](src/mastra/agents/luna/AGENTS.md).                    |
+| `luna-guardrail`        | Roda automaticamente após cada resposta da Luna. Ver [`src/mastra/agents/luna-guardrail/AGENTS.md`](src/mastra/agents/luna-guardrail/AGENTS.md). |
+| `luna-customer-type`    | Classifica o contato (vendedor, comprador, parceiro/afiliado, imprensa, funcionário ou improdutivo). Roda automaticamente ao fim de cada turno, como parte da extração de memória observacional. |
 
-## Get started
+`luna-guardrail` e `luna-customer-type` rodam sozinhos durante uma conversa normal com a Luna — você não precisa chamá-los diretamente. Eles também aparecem na Mastra Studio caso queira testá-los isoladamente.
 
-Set your `OPENAI_API_KEY` in `.env` or in your environment, then run:
+## Instalação
+
+Requer Node.js 22+ (ou Bun, usado neste ambiente de desenvolvimento).
+
+```shell
+bun install
+# ou: npm install
+```
+
+Copie `.env.example` para `.env` e preencha as credenciais:
+
+```shell
+cp .env.example .env
+```
+
+| Variável | Necessária para | Onde é usada |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | Todos os agentes (modelo de chat) | Sempre obrigatória |
+| `OPENAI_EMBEDDING_MODEL` | `pesquisar_base_conhecimento` (embeddar a pergunta antes de buscar no Pinecone) | [`knowledge-search.ts`](src/mastra/agents/luna/knowledge-search.ts) |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Só se algum agente/skill futuro usar Gemini | — |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Habilidades, bases de conhecimento, tarefas, memória de conversa | [`services/supabase.ts`](src/mastra/services/supabase.ts) |
+| `LUNA_TENANT_ID` | Escopar habilidades/bases/tarefas/memória para o tenant certo | [`config/env.ts`](src/mastra/config/env.ts) |
+| `PINECONE_API_KEY` / `PINECONE_INDEX_NAME` | `pesquisar_base_conhecimento` | [`services/pinecone.ts`](src/mastra/services/pinecone.ts) |
+| `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | `buscar_dados_cliente` | [`services/zendesk.ts`](src/mastra/services/zendesk.ts) |
+
+`OPENAI_MODEL` e `LUNA_AGENT_ID` já estão no schema de env mas ainda não são usados por nenhum código — reservados para quando o system prompt da Luna passar a ser lido da tabela `agents` no Supabase.
+
+## Rodando
 
 ```shell
 bun run dev
 ```
 
-Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview).
+Abre em [http://localhost:4111](http://localhost:4111) a [Mastra Studio](https://mastra.ai/docs/studio/overview) — interface pra testar agentes, ver o histórico de tool calls e depurar conversas.
 
-Select **Agent** in Mastra Studio and try one of these prompts:
+## Testando a Luna
 
-- `Get the weather forecast for Austin this weekend.`
-- `Create a landing page for a Japanese sakura festival.`
-- `Check the SPCX stock price now, then check it every minute.`
+### Pela Mastra Studio
 
-The agent asks for approval before it changes files or runs commands. When it creates a schedule, it returns an ID that you can use to pause the schedule.
+Selecione o agente **luna**, mande uma mensagem e acompanhe as tool calls (`buscar_dados_cliente`, `buscar_habilidade`, `pesquisar_base_conhecimento`, `criar_tarefa`) no painel de execução.
 
-## Workspace safety
+### Pela API
 
-The local filesystem tools stay inside the project-level `workspace/` directory. Shell commands start in that directory, but `LocalSandbox` does not provide operating-system isolation by default. Review command approvals carefully, and do not expose this template through an unauthenticated public server.
+```shell
+curl -X POST http://localhost:4111/api/agents/luna/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{ "role": "user", "content": "Quero cancelar minha compra" }],
+    "memory": {
+      "thread": "<conversation_id>",
+      "resource": "<id do cliente>"
+    },
+    "requestContext": {
+      "user_phone": "+5511999999999"
+    }
+  }'
+```
+
+- **`memory.thread`**: o identificador da conversa (o mesmo `conversation_id` usado na tabela `tasks`/`conversation_memory`).
+- **`memory.resource`**: identificador do cliente (útil pra memória entre conversas diferentes da mesma pessoa).
+- **`requestContext.user_phone`**: obrigatório — é como a tool `buscar_dados_cliente` sabe qual telefone buscar no Zendesk. Quem chamar a Luna (o backend/integração do WhatsApp) precisa sempre enviar esse campo.
+
+O endpoint `POST /luna/ask` retorna um JSON plano:
+
+```json
+{
+  "answer": "Oie! aqui é a Luna da Buyticket ✨ Como posso te ajudar hoje?",
+  "guardrail": { "analysis": "...", "action": "reply" },
+  "working_memory": {
+    "id_pedido": "77234",
+    "nome_evento": "Turnê Fã pra Fã",
+    "nome_cliente": "Carlos",
+    "evento_hoje": false,
+    "motivo_contato": "Ingresso não recebido após a compra.",
+    "tipo_cliente": "comprador"
+  }
+}
+```
+
+- **`answer`**: resposta pronta pro cliente.
+- **`guardrail`**: classificação da resposta (`reply` | `connect_human` | `reply_and_connect_human`) — ver `agents/luna-guardrail/AGENTS.md`.
+- **`working_memory`**: estado da working memory da Luna pro `resource` da chamada, já incluindo o que foi aprendido *nesta* mensagem (`null` se `memory` não foi enviado ou nada foi aprendido ainda). A atualização é aguardada antes da resposta ser retornada — isso adiciona latência à resposta, ver `agents/luna-working-memory/AGENTS.md`.
+
+### Consultar histórico + working memory (sem gerar resposta)
+
+`GET /luna/history?thread=<conversation_id>&resource=<id do cliente>` — endpoint somente leitura, não gera nenhuma resposta nova nem chama a Luna. Útil pra inspecionar uma conversa (ex: debug, dashboards internos).
+
+```shell
+curl "http://localhost:4111/luna/history?thread=<conversation_id>&resource=<id do cliente>"
+```
+
+```json
+{
+  "history": [
+    { "user_message": "Meu nome é Carlos, comprei o pedido 77234", "bot_answer": "Oie! aqui é a Luna..." }
+  ],
+  "working_memory": {
+    "id_pedido": "77234",
+    "nome_evento": "Turnê Fã pra Fã",
+    "nome_cliente": "Carlos",
+    "evento_hoje": false,
+    "motivo_contato": "Ingresso não recebido após a compra.",
+    "tipo_cliente": "comprador"
+  }
+}
+```
+
+`history` é a conversa **completa** (sem limite, diferente do array bounded que o guardrail usa internamente), já sem chamadas de tool/skill e sem o embrulho de contexto (habilidades/bases/incidências) que fica gravado nas mensagens do cliente.
+
+Se o guardrail bloquear a resposta (`connect_human`), encaminhe a conversa para um humano.
+
+## Tools da Luna
+
+| Tool | O que faz | Fonte de dados |
+| --- | --- | --- |
+| `buscar_dados_cliente` | Busca últimas compras/vendas, status, limite de saque, etc. Usa `requestContext.user_phone`, não recebe input da LLM. | Zendesk (`users/search.json`) |
+| `buscar_habilidade` | Busca o passo a passo (slots, regras, fallback) de uma habilidade pelo slug. | Supabase `playbooks` |
+| `pesquisar_base_conhecimento` | Busca semântica na F.A.Q., até 4 resultados, por `knowledge_base_slug`. | Pinecone (índice `faq`) |
+| `criar_tarefa` | Abre uma tarefa para o time humano (cancelamento, cadastro de evento, etc.), só quando uma habilidade pedir. | Supabase `tasks` |
+
+## Memória e classificação automática
+
+A cada turno, a Mastra extrai memória observacional da conversa ([`memory/conversation-memory-extractor.ts`](src/mastra/agents/luna/memory/conversation-memory-extractor.ts)):
+- Resumo do problema, dados ainda faltando e dados já coletados.
+- Classifica o tipo de contato via o agente `luna-customer-type`.
+- Sincroniza tudo na tabela `conversation_memory` do Supabase ([`memory/supabase-sync.ts`](src/mastra/agents/luna/memory/supabase-sync.ts)).
 
 ## Storage
 
-The default `file:./mastra.db` database stores agent memory, tasks, and schedules locally. To use Turso, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in `.env`.
+O banco `file:./mastra.db` guarda memória de conversa e observability localmente. Para usar Turso em produção, defina `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` no `.env`.
 
-Recurring schedules continue to use model tokens until you pause them. Ask the agent to pause a schedule with the ID returned by `start_schedule`.
+## Estrutura do projeto
 
-## Making it yours
+- `src/mastra/agents/luna/` — agente principal, prompts, tools, memória. Leia o `AGENTS.md` da pasta antes de editar.
+- `src/mastra/agents/luna-guardrail/` — classificador de output. Leia o `AGENTS.md` da pasta antes de editar.
+- `src/mastra/config/` — validação central de env (`env.ts`) e helpers (`require-env.ts`, `time.ts`).
+- `src/mastra/services/` — clients genéricos (Supabase, Pinecone, Zendesk).
+- `src/mastra/index.ts` — registro de agentes, tools, storage e observability.
 
-- Edit `src/mastra/agents/agent.ts` to change the model, instructions, memory, workspace, or approval policy.
-- Edit `src/mastra/tools/` to customize scheduling.
-- Edit `src/mastra/index.ts` to change storage and observability.
-- Add files or reusable skills under `workspace/` for the agent to use.
+## Aprenda mais
 
-## Learn more
-
-To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). If you're new to AI agents, check out our [course](https://mastra.ai/learn) and [YouTube videos](https://youtube.com/@mastra-ai). You can also join our [Discord](https://discord.gg/BTYqqHKUrf) community to get help and share your projects.
-
-## Deploy to the Mastra platform
-
-The [Mastra platform](https://projects.mastra.ai) provides two products for deploying and managing AI applications built with the Mastra framework. Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+Documentação da Mastra: [mastra.ai/docs](https://mastra.ai/docs/). Este projeto tem uma skill (`.claude/skills/mastra/`) com o guia atualizado de APIs para agentes de código — carregue-a antes de mexer em qualquer coisa relacionada a Mastra.
