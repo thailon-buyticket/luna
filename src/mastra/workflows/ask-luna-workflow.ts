@@ -1,11 +1,11 @@
-import { RequestContext } from '@mastra/core/request-context';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { luna } from '../agents/luna/luna-agent';
-import { extractGuardrailOutput } from '../agents/luna-guardrail/extract-metadata';
-import type { GuardrailOutput } from '../agents/luna-guardrail/schema';
+import { Luna } from '../agents/luna/ask';
+import { guardrailActionSchema } from '../agents/luna/luna-agent';
+import { getHandoffNoticeMessage } from '../webhooks/zendesk/business-hours';
 import { logConversation } from '../webhooks/zendesk/logger';
-import { connectToHumanSwitchboard, sendHandoffNotice, sendMessageToUserZendesk } from '../webhooks/zendesk/reply';
+import { Zendesk, type ZendeskTicket } from '../webhooks/zendesk/zendesk-client';
+import { GuardrailDecision } from './helpers/guardrail-decision';
 
 // Foco no Zendesk, simples: quem chama esse workflow (webhooks/zendesk/prepare-ask-luna-call.ts)
 // já resolveu empresa/bloqueio/estado da conversa/mídia antes — aqui só sobra o essencial:
@@ -25,7 +25,7 @@ const askLunaInputSchema = z.object({
 });
 
 const guardrailResultSchema = askLunaInputSchema.extend({
-  action: z.enum(['reply', 'connect_human', 'reply_and_connect_human']),
+  action: guardrailActionSchema,
   answer: z.string().optional(),
 });
 
@@ -34,16 +34,8 @@ const outcomeSchema = z.object({
   outcome: z.enum(['replied', 'connected_human', 'replied_and_connected_human']),
 });
 
-type GuardrailAction = GuardrailOutput['action'];
-
-function shouldConnectHuman(action: GuardrailAction): boolean {
-  return action === 'connect_human' || action === 'reply_and_connect_human';
-}
-
-function outcomeForGuardrailAction(action: GuardrailAction): z.infer<typeof outcomeSchema>['outcome'] {
-  if (action === 'reply') return 'replied';
-  if (action === 'connect_human') return 'connected_human';
-  return 'replied_and_connected_human';
+function ticketFor(inputData: { appId: string; conversationId: string }): ZendeskTicket {
+  return { appId: inputData.appId, conversationId: inputData.conversationId };
 }
 
 const askLunaStep = createStep({
@@ -53,16 +45,15 @@ const askLunaStep = createStep({
   execute: async ({ inputData }) => {
     const { conversationId, resourceId, userPhone, message } = inputData;
 
-    const result = await luna.generate(message, {
+    const { answer, guardrail } = await Luna.ask(message, {
       memory: { thread: conversationId, resource: resourceId },
-      requestContext: new RequestContext(userPhone ? [['user_phone', userPhone]] : []),
+      requestContext: userPhone ? { user_phone: userPhone } : {},
     });
 
-    const action = extractGuardrailOutput(result)?.action ?? 'reply';
-    const answer = result.text?.trim();
+    const action = guardrail?.action ?? 'reply';
     logConversation(conversationId, `resposta recebida da Luna (guardrail: ${action}): ${answer}`);
 
-    return { ...inputData, action, answer };
+    return { ...inputData, action, answer: answer ?? undefined };
   },
 });
 
@@ -73,7 +64,7 @@ const sendReplyStep = createStep({
   outputSchema: guardrailResultSchema,
   execute: async ({ inputData }) => {
     if (inputData.answer) {
-      await sendMessageToUserZendesk(inputData.appId, inputData.conversationId, inputData.answer);
+      await Zendesk.sendMessage(ticketFor(inputData), inputData.answer);
     }
     return inputData;
   },
@@ -85,7 +76,10 @@ const sendHandoffNoticeStep = createStep({
   inputSchema: guardrailResultSchema,
   outputSchema: guardrailResultSchema,
   execute: async ({ inputData }) => {
-    await sendHandoffNotice(inputData.appId, inputData.conversationId);
+    const notice = getHandoffNoticeMessage();
+    if (notice) {
+      await Zendesk.sendMessage(ticketFor(inputData), notice);
+    }
     return inputData;
   },
 });
@@ -96,10 +90,17 @@ const connectToHumanStep = createStep({
   inputSchema: guardrailResultSchema,
   outputSchema: outcomeSchema,
   execute: async ({ inputData }) => {
-    if (shouldConnectHuman(inputData.action)) {
-      await connectToHumanSwitchboard(inputData.appId, inputData.conversationId);
+    const decide = GuardrailDecision<{ outcome: z.infer<typeof outcomeSchema>['outcome']; connectHuman: boolean }>({
+      onReply: () => ({ outcome: 'replied', connectHuman: false }),
+      onConnectHuman: () => ({ outcome: 'connected_human', connectHuman: true }),
+      onReplyAndConnect: () => ({ outcome: 'replied_and_connected_human', connectHuman: true }),
+    });
+    const { outcome, connectHuman } = decide(inputData.action);
+
+    if (connectHuman) {
+      await Zendesk.connectHuman(ticketFor(inputData));
     }
-    return { conversationId: inputData.conversationId, outcome: outcomeForGuardrailAction(inputData.action) };
+    return { conversationId: inputData.conversationId, outcome };
   },
 });
 

@@ -7,22 +7,23 @@ import { conversationMemoryExtractor } from './memory/conversation-memory-extrac
 
 const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL }, 'Luna memory storage');
 
-export const lunaMemory = new Memory({
+export const lunaSupabaseMemory = new Memory({
   // Storage no nível do agente (não o do Mastra em `index.ts`): a memória da Luna (threads,
   // mensagens, working memory) vive no Postgres do Supabase, com seu próprio schema nativo do
   // Mastra — não reaproveita a tabela `n8n_luna_chat_histories` do fluxo antigo do n8n.
   storage: new PostgresStore({ id: 'luna-memory-storage', connectionString: SUPABASE_DB_URL }),
   options: {
-    generateTitle: true,
+    generateTitle: false,
     observationalMemory: {
-      model: 'openai/gpt-5.6-terra',
+      model: 'openai/gpt-5.6-luna',
       observation: {
         extract: [conversationMemoryExtractor],
       },
+      scope:'thread'
     },
     workingMemory: {
       enabled: true,
-      scope: 'resource',
+      scope: 'thread',
       schema: lunaWorkingMemorySchema,
       agentManaged: false,
     },

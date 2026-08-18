@@ -1,14 +1,8 @@
 import { registerApiRoute } from '@mastra/core/server';
-import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import { extractGuardrailOutput } from '../agents/luna-guardrail/extract-metadata';
+import { Luna, parseWorkingMemory } from '../agents/luna/ask';
 import { buildExchanges } from '../agents/luna/memory/transcript';
-import type { LunaWorkingMemory } from '../agents/luna-working-memory/schema';
 import { parseOrBadRequest } from './validate';
-
-function parseWorkingMemory(raw: string | null): LunaWorkingMemory | null {
-  return raw ? (JSON.parse(raw) as LunaWorkingMemory) : null;
-}
 
 const bodySchema = z.object({
   messages: z.string(),
@@ -21,7 +15,7 @@ const bodySchema = z.object({
   requestContext: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const lunaReplyRoute = registerApiRoute('/luna/ask', {
+export const lunaAsk = registerApiRoute('/luna/ask', {
   method: 'POST',
   openapi: {
     summary: 'Gera a resposta da Luna para uma mensagem de cliente',
@@ -35,25 +29,9 @@ export const lunaReplyRoute = registerApiRoute('/luna/ask', {
     if (parsed instanceof Response) return parsed;
     const { messages, memory, requestContext } = parsed;
 
-    const luna = c.get('mastra').getAgent('luna');
-    const result = await luna.generate(messages, {
-      memory,
-      requestContext: new RequestContext(Object.entries(requestContext ?? {})),
-    });
+    const { answer, guardrail, working_memory } = await Luna.ask(messages, { memory, requestContext });
 
-    const guardrail = extractGuardrailOutput(result);
-
-    const lunaMemory = await luna.getMemory();
-    const workingMemoryRaw =
-      memory && lunaMemory
-        ? await lunaMemory.getWorkingMemory({ threadId: memory.thread, resourceId: memory.resource })
-        : null;
-
-    return c.json({
-      answer: result.text ?? null,
-      guardrail,
-      working_memory: parseWorkingMemory(workingMemoryRaw),
-    });
+    return c.json({ answer, guardrail, working_memory });
   },
 });
 

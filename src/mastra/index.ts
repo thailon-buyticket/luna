@@ -14,7 +14,7 @@ import { documentAnalysisAgent } from './agents/luna-document-analysis/luna-docu
 import { lunaGuardrail } from './agents/luna-guardrail/luna-guardrail-agent';
 import { imageAnalysisAgent } from './agents/luna-image-analysis/luna-image-analysis-agent';
 import { lunaWorkingMemoryAgent } from './agents/luna-working-memory/luna-working-memory-agent';
-import { lunaHistoryRoute, lunaReplyRoute } from './routes/luna-api';
+import { lunaHistoryRoute, lunaAsk } from './routes/luna-api';
 import { zendeskWebhookRoute } from './routes/zendesk-webhook';
 import { askLunaWorkflow } from './workflows/ask-luna-workflow';
 
@@ -25,7 +25,7 @@ export const mastra = new Mastra({
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
   workflows: { askLunaWorkflow },
   server: {
-    apiRoutes: [lunaReplyRoute, lunaHistoryRoute, zendeskWebhookRoute],
+    apiRoutes: [lunaAsk, lunaHistoryRoute, zendeskWebhookRoute],
   },
   storage: new MastraCompositeStore({
     id: 'composite-storage',

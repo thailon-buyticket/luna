@@ -2,7 +2,7 @@ import type { MastraDBMessage } from '@mastra/core/memory';
 import type { Processor, ProcessOutputResultArgs } from '@mastra/core/processors';
 import { deepMergeWorkingMemory } from '@mastra/memory';
 import { classifyCustomerType } from '../luna-customer-type/luna-customer-type-agent';
-import { lunaMemory } from '../luna/luna-memory';
+import { lunaSupabaseMemory } from '../luna/luna-memory';
 import { messagesToTranscript } from '../luna/memory/transcript';
 import { lunaWorkingMemoryAgent } from './luna-working-memory-agent';
 
@@ -41,7 +41,7 @@ export class LunaWorkingMemoryProcessor implements Processor {
     botAnswer: string;
     transcript: string;
   }): Promise<void> {
-    const currentRaw = await lunaMemory.getWorkingMemory({ threadId, resourceId });
+    const currentRaw = await lunaSupabaseMemory.getWorkingMemory({ threadId, resourceId });
     const current = currentRaw ? JSON.parse(currentRaw) : {};
 
     const [{ object: update }, tipoCliente] = await Promise.all([
@@ -53,6 +53,6 @@ export class LunaWorkingMemoryProcessor implements Processor {
 
     const combinedUpdate = { ...update, tipo_cliente: tipoCliente };
     const merged = deepMergeWorkingMemory(current, combinedUpdate);
-    await lunaMemory.updateWorkingMemory({ threadId, resourceId, workingMemory: JSON.stringify(merged) });
+    await lunaSupabaseMemory.updateWorkingMemory({ threadId, resourceId, workingMemory: JSON.stringify(merged) });
   }
 }

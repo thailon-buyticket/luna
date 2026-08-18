@@ -2,12 +2,8 @@ import { analyzeDocument } from '../../agents/luna-document-analysis/luna-docume
 import { analyzeImage } from '../../agents/luna-image-analysis/luna-image-analysis-agent';
 import { transcribeAudio } from '../../services/openai-audio';
 import { logConversation } from './logger';
+import { predefinedMessage } from '../../predefined-messages';
 import type { ZendeskMessageContent } from './schema';
-
-const VIDEO_UNSUPPORTED_MESSAGE =
-  '[Cliente enviou um vídeo. Diga que ainda não conseguimos abrir vídeos e peça uma descrição em texto ou uma foto/print do problema.]';
-const STICKER_UNSUPPORTED_MESSAGE = '[Cliente enviou uma figurinha ou emoji]';
-const FILE_PLACEHOLDER_MESSAGE = 'usuário enviou um arquivo';
 
 // Independente do tipo recebido, sempre resolve pro mesmo formato: um texto que a Luna
 // consegue processar como se fosse a mensagem original do cliente.
@@ -20,8 +16,8 @@ export async function resolveMessageOutput(
   logConversation(conversationId, `analisando tipo de mensagem "${messageType}"...`);
 
   if (messageType === 'text') return content.text ?? '';
-  if (messageType === 'videoMessage') return VIDEO_UNSUPPORTED_MESSAGE;
-  if (messageType === 'stickerMessage') return STICKER_UNSUPPORTED_MESSAGE;
+  if (messageType === 'videoMessage') return predefinedMessage.media.video_unsupported;
+  if (messageType === 'stickerMessage') return predefinedMessage.media.sticker_unsupported;
   if (messageType === 'image') return analyzeImage(requireMediaUrl(content), content.mediaType, userMessage);
 
   // Áudio do WhatsApp costuma chegar com message_type "file" e mediaType "audio/ogg" —
@@ -29,7 +25,7 @@ export async function resolveMessageOutput(
   if (content.mediaType === 'audio/ogg') return transcribeAudio(requireMediaUrl(content));
   if (messageType === 'file' && content.mediaUrl) return analyzeDocument(content.mediaUrl, content.mediaType, userMessage);
 
-  return FILE_PLACEHOLDER_MESSAGE;
+  return predefinedMessage.media.file_placeholder;
 }
 
 function requireMediaUrl(content: ZendeskMessageContent): string {
