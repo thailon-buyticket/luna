@@ -15,3 +15,7 @@ create table if not exists conversation_memory (
 
 create index if not exists conversation_memory_tenant_id_idx on conversation_memory (tenant_id);
 create index if not exists conversation_memory_resource_id_idx on conversation_memory (resource_id);
+
+-- Tabelas criadas via SQL cru não recebem os GRANTs automáticos que o Supabase Studio aplica
+-- ao criar pela UI; sem isso, o client REST (service_role) recebe "permission denied for table".
+grant select, insert, update, delete on conversation_memory to service_role;

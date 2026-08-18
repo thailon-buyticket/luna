@@ -14,6 +14,9 @@ const envSchema = z.object({
 
   SUPABASE_URL: optionalUrl(),
   SUPABASE_SERVICE_ROLE_KEY: optionalString(),
+  // Connection string do Postgres do Supabase (Project Settings > Database > Connection string).
+  // Usada como storage da memória da Luna (@mastra/pg), separado do client REST acima.
+  SUPABASE_DB_URL: optionalUrl(),
   LUNA_TENANT_ID: optionalString(),
   LUNA_AGENT_ID: optionalString(),
 
