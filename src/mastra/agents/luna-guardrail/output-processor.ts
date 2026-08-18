@@ -1,7 +1,7 @@
 import type { MastraDBMessage } from '@mastra/core/memory';
 import type { Processor, ProcessOutputResultArgs } from '@mastra/core/processors';
 import { buildExchanges } from '../luna/memory/transcript';
-import { lunaGuardrail } from './luna-guardrail';
+import { lunaGuardrail } from './luna-guardrail-agent';
 
 const RECENT_EXCHANGES_LIMIT = 4;
 

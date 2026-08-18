@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { getLunaSkillBySlug } from '../skills';
+import { getHiveOps } from '../../../hiveops';
 
 export const buscarHabilidadeTool = createTool({
   id: 'buscar_habilidade',
@@ -21,7 +21,7 @@ Você sempre deve consultar a F.A.Q após utilizar uma Habilidade. Uma sempre co
     notes: z.string().nullable().optional(),
   }),
   execute: async ({ slug }) => {
-    const skill = await getLunaSkillBySlug(slug);
+    const skill = await getHiveOps().getSkillBySlug(slug);
     if (!skill) {
       return { found: false, message: 'Skill indisponível, siga o que diz na base de conhecimento.' };
     }

@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { createLunaTask } from '../tasks';
+import { getHiveOps } from '../../../hiveops';
 
 export const criarTarefaTool = createTool({
   id: 'criar_tarefa',
@@ -28,7 +28,7 @@ Pense antes de executar.`,
     id: z.string(),
   }),
   execute: async ({ type, priority, input }, { agent }) => {
-    return createLunaTask({
+    return getHiveOps().createTask({
       type,
       priority,
       input,

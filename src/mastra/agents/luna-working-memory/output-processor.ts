@@ -1,10 +1,10 @@
 import type { MastraDBMessage } from '@mastra/core/memory';
 import type { Processor, ProcessOutputResultArgs } from '@mastra/core/processors';
 import { deepMergeWorkingMemory } from '@mastra/memory';
-import { classifyCustomerType } from '../luna-customer-type/luna-customer-type';
+import { classifyCustomerType } from '../luna-customer-type/luna-customer-type-agent';
 import { lunaMemory } from '../luna/luna-memory';
 import { messagesToTranscript } from '../luna/memory/transcript';
-import { lunaWorkingMemoryAgent } from './luna-working-memory';
+import { lunaWorkingMemoryAgent } from './luna-working-memory-agent';
 
 export class LunaWorkingMemoryProcessor implements Processor {
   readonly id = 'luna-working-memory-processor';

@@ -34,7 +34,7 @@ cp .env.example .env
 | `OPENAI_API_KEY` | Todos os agentes (modelo de chat) | Sempre obrigatória |
 | `OPENAI_EMBEDDING_MODEL` | `pesquisar_base_conhecimento` (embeddar a pergunta antes de buscar no Pinecone) | [`knowledge-search.ts`](src/mastra/agents/luna/knowledge-search.ts) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Só se algum agente/skill futuro usar Gemini | — |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Habilidades, bases de conhecimento, tarefas, memória de conversa | [`services/supabase.ts`](src/mastra/services/supabase.ts) |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Habilidades, bases de conhecimento, tarefas, memória de conversa (via HiveOps) | [`hiveops/supabase-hiveops-provider.ts`](src/mastra/hiveops/supabase-hiveops-provider.ts) |
 | `LUNA_TENANT_ID` | Escopar habilidades/bases/tarefas/memória para o tenant certo | [`config/env.ts`](src/mastra/config/env.ts) |
 | `PINECONE_API_KEY` / `PINECONE_INDEX_NAME` | `pesquisar_base_conhecimento` | [`services/pinecone.ts`](src/mastra/services/pinecone.ts) |
 | `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | `buscar_dados_cliente` | [`services/zendesk.ts`](src/mastra/services/zendesk.ts) |
@@ -139,7 +139,7 @@ Se o guardrail bloquear a resposta (`connect_human`), encaminhe a conversa para 
 A cada turno, a Mastra extrai memória observacional da conversa ([`memory/conversation-memory-extractor.ts`](src/mastra/agents/luna/memory/conversation-memory-extractor.ts)):
 - Resumo do problema, dados ainda faltando e dados já coletados.
 - Classifica o tipo de contato via o agente `luna-customer-type`.
-- Sincroniza tudo na tabela `conversation_memory` do Supabase ([`memory/supabase-sync.ts`](src/mastra/agents/luna/memory/supabase-sync.ts)).
+- Sincroniza tudo na tabela `conversation_memory` do Supabase via HiveOps ([`hiveops/`](src/mastra/hiveops)).
 
 ## Storage
 
@@ -149,8 +149,9 @@ O banco `file:./mastra.db` guarda memória de conversa e observability localment
 
 - `src/mastra/agents/luna/` — agente principal, prompts, tools, memória. Leia o `AGENTS.md` da pasta antes de editar.
 - `src/mastra/agents/luna-guardrail/` — classificador de output. Leia o `AGENTS.md` da pasta antes de editar.
+- `src/mastra/hiveops/` — acesso a dados do HiveOps (habilidades, bases de conhecimento, incidências, tarefas, tags, conversas) por trás de uma interface (`HiveOpsProvider`), hoje implementada com Supabase. Leia o `AGENTS.md` da pasta antes de editar.
 - `src/mastra/config/` — validação central de env (`env.ts`) e helpers (`require-env.ts`, `time.ts`).
-- `src/mastra/services/` — clients genéricos (Supabase, Pinecone, Zendesk).
+- `src/mastra/services/` — clients genéricos (Supabase, Pinecone, Zendesk, HTTP).
 - `src/mastra/index.ts` — registro de agentes, tools, storage e observability.
 
 ## Aprenda mais

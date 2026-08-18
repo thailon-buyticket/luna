@@ -4,10 +4,10 @@ import { LunaWorkingMemoryProcessor } from '../luna-working-memory/output-proces
 import { LunaContextProcessor } from './input-processor';
 import { lunaMemory } from './luna-memory';
 import { buildSystemPrompt } from './prompts/system-prompt';
-import { buscarDadosClienteTool } from './tools/buscar-dados-cliente';
-import { buscarHabilidadeTool } from './tools/buscar-habilidade';
-import { criarTarefaTool } from './tools/criar-tarefa';
-import { pesquisarBaseConhecimentoTool } from './tools/pesquisar-base-conhecimento';
+import { buscarDadosClienteTool } from './tools/buscar-dados-cliente-tool';
+import { buscarHabilidadeTool } from './tools/buscar-habilidade-tool';
+import { criarTarefaTool } from './tools/criar-tarefa-tool';
+import { pesquisarBaseConhecimentoTool } from './tools/pesquisar-base-conhecimento-tool';
 
 // TODO: tools, workspace, memory and metadata below are still the starter-template
 // defaults; revisit once Luna's real prompt and requirements are in AGENTS.md.

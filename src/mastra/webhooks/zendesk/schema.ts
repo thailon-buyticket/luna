@@ -56,3 +56,4 @@ export type ZendeskConversationMessagePayload = z.infer<typeof conversationMessa
 export type ZendeskMessage = ZendeskConversationMessagePayload['message'];
 export type ZendeskMessageAuthor = z.infer<typeof authorSchema>;
 export type ZendeskMessageContent = z.infer<typeof messageContentSchema>;
+export { messageContentSchema };

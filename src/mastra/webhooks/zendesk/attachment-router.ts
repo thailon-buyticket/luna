@@ -1,4 +1,5 @@
-import { analyzeImage } from '../../agents/luna-image-analysis/luna-image-analysis';
+import { analyzeDocument } from '../../agents/luna-document-analysis/luna-document-analysis-agent';
+import { analyzeImage } from '../../agents/luna-image-analysis/luna-image-analysis-agent';
 import { transcribeAudio } from '../../services/openai-audio';
 import { logConversation } from './logger';
 import type { ZendeskMessageContent } from './schema';
@@ -6,8 +7,6 @@ import type { ZendeskMessageContent } from './schema';
 const VIDEO_UNSUPPORTED_MESSAGE =
   '[Cliente enviou um vídeo. Diga que ainda não conseguimos abrir vídeos e peça uma descrição em texto ou uma foto/print do problema.]';
 const STICKER_UNSUPPORTED_MESSAGE = '[Cliente enviou uma figurinha ou emoji]';
-// Análise de documento depende do Gemini, que ainda não está configurado — por enquanto só
-// avisa a Luna que veio um arquivo, sem tentar descrevê-lo.
 const FILE_PLACEHOLDER_MESSAGE = 'usuário enviou um arquivo';
 
 // Independente do tipo recebido, sempre resolve pro mesmo formato: um texto que a Luna
@@ -26,8 +25,9 @@ export async function resolveMessageOutput(
   if (messageType === 'image') return analyzeImage(requireMediaUrl(content), content.mediaType, userMessage);
 
   // Áudio do WhatsApp costuma chegar com message_type "file" e mediaType "audio/ogg" —
-  // por isso é detectado pelo mediaType, não pelo message_type, e checado antes de "file".
+  // por isso é detectado pelo mediaType, não pelo message_type, e checado antes do resto de "file".
   if (content.mediaType === 'audio/ogg') return transcribeAudio(requireMediaUrl(content));
+  if (messageType === 'file' && content.mediaUrl) return analyzeDocument(content.mediaUrl, content.mediaType, userMessage);
 
   return FILE_PLACEHOLDER_MESSAGE;
 }

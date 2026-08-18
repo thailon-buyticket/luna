@@ -1,9 +1,14 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
-import type { GuardrailOutput } from '../agents/luna-guardrail/schema';
+import { extractGuardrailOutput } from '../agents/luna-guardrail/extract-metadata';
 import { buildExchanges } from '../agents/luna/memory/transcript';
 import type { LunaWorkingMemory } from '../agents/luna-working-memory/schema';
+import { parseOrBadRequest } from './validate';
+
+function parseWorkingMemory(raw: string | null): LunaWorkingMemory | null {
+  return raw ? (JSON.parse(raw) as LunaWorkingMemory) : null;
+}
 
 const bodySchema = z.object({
   messages: z.string(),
@@ -26,34 +31,28 @@ export const lunaReplyRoute = registerApiRoute('/luna/ask', {
     tags: ['Luna'],
   },
   handler: async (c) => {
-    const parsed = bodySchema.safeParse(await c.req.json());
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', details: parsed.error.flatten() }, 400);
-    }
-    const { messages, memory, requestContext } = parsed.data;
+    const parsed = parseOrBadRequest(bodySchema, await c.req.json(), c);
+    if (parsed instanceof Response) return parsed;
+    const { messages, memory, requestContext } = parsed;
 
-    const mastra = c.get('mastra');
-    const luna = mastra.getAgent('luna');
+    const luna = c.get('mastra').getAgent('luna');
     const result = await luna.generate(messages, {
       memory,
       requestContext: new RequestContext(Object.entries(requestContext ?? {})),
     });
 
-    const assistantMessage = result.response?.uiMessages?.find((message) => message.role === 'assistant');
-    const metadata = assistantMessage?.metadata as { guardrail?: GuardrailOutput } | undefined;
-    const guardrail = metadata?.guardrail ?? null;
+    const guardrail = extractGuardrailOutput(result);
 
     const lunaMemory = await luna.getMemory();
     const workingMemoryRaw =
       memory && lunaMemory
         ? await lunaMemory.getWorkingMemory({ threadId: memory.thread, resourceId: memory.resource })
         : null;
-    const workingMemory = workingMemoryRaw ? (JSON.parse(workingMemoryRaw) as LunaWorkingMemory) : null;
 
     return c.json({
       answer: result.text ?? null,
       guardrail,
-      working_memory: workingMemory,
+      working_memory: parseWorkingMemory(workingMemoryRaw),
     });
   },
 });
@@ -73,17 +72,15 @@ export const lunaHistoryRoute = registerApiRoute('/luna/history', {
     tags: ['Luna'],
   },
   handler: async (c) => {
-    const parsed = historyQuerySchema.safeParse({
-      thread: c.req.query('thread'),
-      resource: c.req.query('resource'),
-    });
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', details: parsed.error.flatten() }, 400);
-    }
-    const { thread, resource } = parsed.data;
+    const parsed = parseOrBadRequest(
+      historyQuerySchema,
+      { thread: c.req.query('thread'), resource: c.req.query('resource') },
+      c,
+    );
+    if (parsed instanceof Response) return parsed;
+    const { thread, resource } = parsed;
 
-    const mastra = c.get('mastra');
-    const luna = mastra.getAgent('luna');
+    const luna = c.get('mastra').getAgent('luna');
     const lunaMemory = await luna.getMemory();
     if (!lunaMemory) {
       return c.json({ error: 'memory_not_configured' }, 500);
@@ -108,12 +105,9 @@ export const lunaHistoryRoute = registerApiRoute('/luna/history', {
       lunaMemory.getWorkingMemory({ threadId: thread, resourceId: resource }),
     ]);
 
-    const history = buildExchanges(messages);
-    const workingMemory = workingMemoryRaw ? (JSON.parse(workingMemoryRaw) as LunaWorkingMemory) : null;
-
     return c.json({
-      history,
-      working_memory: workingMemory,
+      history: buildExchanges(messages),
+      working_memory: parseWorkingMemory(workingMemoryRaw),
     });
   },
 });

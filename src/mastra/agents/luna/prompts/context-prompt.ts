@@ -1,17 +1,15 @@
 import { formatNow } from '../../../config/time';
-import type { LunaIncident } from '../incidents';
-import type { LunaKnowledgeBase } from '../knowledge-bases';
-import type { LunaSkill } from '../skills';
+import type { HiveOpsIncident, HiveOpsKnowledgeBase, HiveOpsSkill } from '../../../hiveops';
 
-function formatSkillsList(skills: LunaSkill[]): string {
+function formatSkillsList(skills: HiveOpsSkill[]): string {
   return skills.map((skill, index) => `${index} - '${skill.slug}': ${skill.intent}`).join('\n');
 }
 
-function formatKnowledgeBasesList(knowledgeBases: LunaKnowledgeBase[]): string {
+function formatKnowledgeBasesList(knowledgeBases: HiveOpsKnowledgeBase[]): string {
   return knowledgeBases.map((kb, index) => `${index} - '${kb.slug}': ${kb.description}`).join('\n\n');
 }
 
-function formatIncidentsSection(incidents: LunaIncident[]): string {
+function formatIncidentsSection(incidents: HiveOpsIncident[]): string {
   if (incidents.length === 0) return '';
 
   const incidentsList = incidents.map((incident) => `- ${incident.title}: ${incident.content}`).join('\n');
@@ -33,9 +31,9 @@ export function extractUserMessageFromContextPrompt(text: string): string {
 export function buildContextPrompt(
   userMessage: string,
   now: Date,
-  skills: LunaSkill[],
-  knowledgeBases: LunaKnowledgeBase[],
-  incidents: LunaIncident[],
+  skills: HiveOpsSkill[],
+  knowledgeBases: HiveOpsKnowledgeBase[],
+  incidents: HiveOpsIncident[],
 ): string {
   const skillsList = formatSkillsList(skills);
   const knowledgeBasesList = formatKnowledgeBasesList(knowledgeBases);

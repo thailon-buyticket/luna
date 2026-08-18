@@ -14,3 +14,20 @@ export function getSupabaseClient(): SupabaseClient {
   }
   return client;
 }
+
+/** Todo dado da Luna é escopado por tenant no Supabase — atalho pro `LUNA_TENANT_ID` validado. */
+export function requireTenantId(label: string): string {
+  return requireEnv({ LUNA_TENANT_ID: env.LUNA_TENANT_ID }, label).LUNA_TENANT_ID;
+}
+
+/** Desembrulha o `{ data, error }` que toda query/mutation do Supabase retorna, lançando com uma mensagem consistente. */
+export async function unwrapOrThrow<T>(
+  query: PromiseLike<{ data: T | null; error: { message: string } | null }>,
+  label: string,
+): Promise<T | null> {
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Failed to ${label}: ${error.message}`);
+  }
+  return data;
+}

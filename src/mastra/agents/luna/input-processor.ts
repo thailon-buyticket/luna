@@ -1,9 +1,7 @@
 import type { MastraDBMessage } from '@mastra/core/memory';
 import type { Processor, ProcessInputArgs } from '@mastra/core/processors';
-import { getActiveLunaIncidents } from './incidents';
-import { getActiveLunaKnowledgeBases } from './knowledge-bases';
+import { getHiveOps } from '../../hiveops';
 import { buildContextPrompt } from './prompts/context-prompt';
-import { getActiveLunaSkills } from './skills';
 
 export class LunaContextProcessor implements Processor {
   readonly id = 'luna-context-processor';
@@ -28,10 +26,11 @@ export class LunaContextProcessor implements Processor {
     }
     if (!userText) return messages;
 
+    const hiveOps = getHiveOps();
     const [skills, knowledgeBases, incidents] = await Promise.all([
-      getActiveLunaSkills(),
-      getActiveLunaKnowledgeBases(),
-      getActiveLunaIncidents(),
+      hiveOps.getActiveSkills(),
+      hiveOps.getActiveKnowledgeBases(),
+      hiveOps.getActiveIncidents(),
     ]);
     const wrappedText = buildContextPrompt(userText, new Date(), skills, knowledgeBases, incidents);
 

@@ -16,7 +16,7 @@ Classifica cada resposta da Luna, com base no histórico completo da conversa at
 
 ## Arquivos desta pasta
 
-- `luna-guardrail.ts` — definição do `Agent` classificador, registrado em `src/mastra/index.ts`. `defaultOptions.structuredOutput` já aponta pro `guardrailOutputSchema`, então toda chamada a `.generate()`/`.stream()` retorna `{ analysis, action }` em `result.object` sem precisar passar `structuredOutput` de novo. Sem `model` separado aqui (diferente de `luna`) porque este agente não tem tools — structured output nativo funciona direto.
+- `luna-guardrail-agent.ts` — definição do `Agent` classificador, registrado em `src/mastra/index.ts`. `defaultOptions.structuredOutput` já aponta pro `guardrailOutputSchema`, então toda chamada a `.generate()`/`.stream()` retorna `{ analysis, action }` em `result.object` sem precisar passar `structuredOutput` de novo. Sem `model` separado aqui (diferente de `luna`) porque este agente não tem tools — structured output nativo funciona direto.
 - `GUARDRAIL.md` — texto-fonte das regras de classificação, escrito em markdown pra ser fácil de editar/revisar. `prompts/system-prompt.ts` transcreve esse conteúdo para um template literal; se editar as regras, edite aqui e depois replique lá (não há leitura automática do `.md` em runtime).
 - `prompts/system-prompt.ts` — prompt (transcrito de `GUARDRAIL.md`, nesta mesma pasta), injeta a data/hora atual (`America/Sao_Paulo`) no lugar de `{{ $now }}`.
 - `schema.ts` — schema zod do structured output (`{ analysis, action }`), importado tanto pelo agent (`defaultOptions`) quanto por quem consome `result.object` (ex: `routes/luna-api.ts`).

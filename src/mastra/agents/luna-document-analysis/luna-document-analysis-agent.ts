@@ -1,24 +1,13 @@
-import { Agent } from '@mastra/core/agent';
+import { createMediaAnalysisAgent } from '../shared/media-analysis-agent';
 import { buildDocumentAnalysisPrompt } from './prompts/system-prompt';
 
-export const documentAnalysisAgent = new Agent({
+const { agent: documentAnalysisAgent, analyze: analyzeDocument } = createMediaAnalysisAgent({
   id: 'luna-document-analysis',
   name: 'Luna Document Analysis',
   description: 'Descreve documentos/arquivos enviados pelo cliente para servir de input pra Luna.',
   instructions: buildDocumentAnalysisPrompt(),
   model: 'openai/gpt-4.1-mini',
+  buildMediaPart: (mediaUrl, mediaType) => ({ type: 'file', data: mediaUrl, mediaType: mediaType ?? 'application/pdf' }),
 });
 
-export async function analyzeDocument(mediaUrl: string, mediaType: string | undefined, userMessage: string): Promise<string> {
-  const { text } = await documentAnalysisAgent.generate([
-    {
-      role: 'user',
-      content: [
-        { type: 'file', data: mediaUrl, mimeType: mediaType ?? 'application/pdf' },
-        { type: 'text', text: `Mensagem do usuário: ${userMessage || 'nada'}` },
-      ],
-    },
-  ]);
-
-  return text;
-}
+export { documentAnalysisAgent, analyzeDocument };

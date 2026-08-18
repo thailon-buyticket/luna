@@ -1,7 +1,7 @@
 import { Extractor } from '@mastra/memory';
+import { getHiveOps } from '../../../hiveops';
 import { conversationMemorySchema } from './conversation-memory-schema';
-import { classifyCustomerType } from '../../luna-customer-type/luna-customer-type';
-import { upsertConversationMemory } from './supabase-sync';
+import { classifyCustomerType } from '../../luna-customer-type/luna-customer-type-agent';
 import { messagesToTranscript } from './transcript';
 
 export const conversationMemoryExtractor = new Extractor({
@@ -24,7 +24,7 @@ Só preencha um campo quando houver evidência clara na conversa. Nunca invente 
       }
     }
 
-    await upsertConversationMemory({
+    await getHiveOps().upsertConversationMemory({
       conversationId: threadId,
       resourceId,
       customer_type: customerType,

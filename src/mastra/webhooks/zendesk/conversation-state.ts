@@ -1,6 +1,4 @@
-import { env } from '../../config/env';
-import { requireEnv } from '../../config/require-env';
-import { getSupabaseClient } from '../../services/supabase';
+import { getHiveOps } from '../../hiveops';
 
 export interface ConversationState {
   isNewConversation: boolean;
@@ -16,21 +14,10 @@ export async function getConversationState(
   phone: string | null,
   userId: string | undefined,
 ): Promise<ConversationState> {
-  const { LUNA_TENANT_ID } = requireEnv({ LUNA_TENANT_ID: env.LUNA_TENANT_ID }, 'Zendesk conversation state');
-
-  const { data, error } = await getSupabaseClient()
-    .from('conversations')
-    .select('id')
-    .eq('tenant_id', LUNA_TENANT_ID)
-    .eq('external_id', conversationId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to load conversation state: ${error.message}`);
-  }
+  const conversation = await getHiveOps().findConversationByExternalId(conversationId);
 
   return {
-    isNewConversation: !data,
+    isNewConversation: !conversation,
     resourceId: phone ?? `zendesk:${userId ?? conversationId}`,
   };
 }

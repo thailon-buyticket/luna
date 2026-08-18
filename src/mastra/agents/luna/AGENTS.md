@@ -22,11 +22,11 @@ TODO: listar regras e restrições específicas deste agente (o que ele pode/nã
 
 ## Arquivos desta pasta
 
-- `luna.ts` — definição do `Agent` do Mastra, registrado em `src/mastra/index.ts`.
-- `luna-memory.ts` — a `Memory` da Luna (extraída de `luna.ts` pra evitar import circular com `agents/luna-working-memory/output-processor.ts`, que importa essa instância diretamente).
+- `luna-agent.ts` — definição do `Agent` do Mastra, registrado em `src/mastra/index.ts`.
+- `luna-memory.ts` — a `Memory` da Luna (extraída de `luna-agent.ts` pra evitar import circular com `agents/luna-working-memory/output-processor.ts`, que importa essa instância diretamente).
 - `prompts/system-prompt.ts` — system prompt do agente (`instructions`).
 - `prompts/context-prompt.ts` — texto enviado junto com toda mensagem do usuário, dando contexto sobre skills/habilidades disponíveis.
-- `skills.ts` / `knowledge-bases.ts` / `knowledge-search.ts` / `customer-lookup.ts` / `tasks.ts` / `incidents.ts` — acesso a dados (Supabase, Pinecone, Zendesk) usados pelas tools em `tools/`.
+- `knowledge-search.ts` / `customer-lookup.ts` — acesso a dados que não vêm do HiveOps (Pinecone, Zendesk), usados pelas tools em `tools/`. Habilidades, bases de conhecimento, incidências e tarefas vêm do HiveOps (`getHiveOps()`, ver `hiveops/AGENTS.md`), não de arquivos aqui dentro.
 - `tools/` — as tools da Luna (`buscar_habilidade`, `pesquisar_base_conhecimento`, `criar_tarefa`, `buscar_dados_cliente`).
 - `input-processor.ts` — injeta habilidades, bases de conhecimento e incidências ativas na mensagem do usuário antes de chegar no modelo.
 - `memory/` — a memória observacional (`conversation_memory`) da Luna. Ver seção abaixo.
@@ -56,9 +56,9 @@ junto com os outros campos.
 
 - `memory/conversation-memory-schema.ts` — schema Zod de `problem_summary`/`data_needed`/`data_collected`.
 - `memory/transcript.ts` — converte `MastraDBMessage[]` em texto simples pro classificador.
-- `memory/supabase-sync.ts` — faz o upsert na tabela `conversation_memory` (chave: `conversation_id` = `threadId`).
+- O upsert na tabela `conversation_memory` (chave: `conversation_id` = `threadId`) é feito por `getHiveOps().upsertConversationMemory(...)`, não por um arquivo desta pasta.
 - `memory/conversation-memory-extractor.ts` — define o `Extractor` de `problem_summary`/dados, chama o
-  `customerTypeAgent` no `onExtracted` e grava tudo no Supabase. Ligado em `luna.ts` via
+  `customerTypeAgent` no `onExtracted` e grava tudo no Supabase. Ligado em `luna-agent.ts` via
   `observationalMemory.observation.extract`.
 
 **Tags e trending não fazem parte disso** — continuam sendo os agentes `agents/tags/` e `agents/trending/` do
@@ -69,7 +69,7 @@ detecção de padrões entre conversas pro time interno, respectivamente).
 
 Diferente do `conversation_memory` acima (write-only, pra relatórios), a working memory **volta pro prompt da
 Luna** — é o que ela efetivamente "lembra" durante o atendimento (nome do cliente, número do pedido, outras
-informações já coletadas). A `Memory` da Luna vive em `luna-memory.ts` (não inline em `luna.ts`) — ver nota abaixo.
+informações já coletadas). A `Memory` da Luna vive em `luna-memory.ts` (não inline em `luna-agent.ts`) — ver nota abaixo.
 Configurada em `memory.options.workingMemory`:
 
 - `enabled: true`, `scope: 'resource'` — persiste entre conversas diferentes do mesmo cliente (mesmo `resourceId`),

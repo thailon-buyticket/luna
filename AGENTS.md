@@ -13,10 +13,15 @@ Load the `mastra` skill BEFORE any Mastra work. Never rely on cached knowledge �
 
 Each agent lives in its own folder under `src/mastra/agents/<agent-id>/`:
 
-- `agent.ts` — the Mastra `Agent` definition, imported and registered in `src/mastra/index.ts`
+- `<agent-id>-agent.ts` — the Mastra `Agent` definition, imported and registered in `src/mastra/index.ts`
 - `AGENTS.md` — this agent's objective and rules; read it before changing anything in the folder
 - `prompts/system-prompt.ts` — the agent's system prompt (used as `instructions`)
-- `prompts/context-prompt.ts` — the wrapper text meant to accompany every user message (available skills/tools, etc.)
+- `prompts/context-prompt.ts` — the wrapper text meant to accompany every user message (available skills/tools, etc.), when the agent needs one
+- `schema.ts` / `output-processor.ts` — structured output schema and/or `Processor`, when the agent needs one
+
+Not every agent needs every file above — a plain classifier or media-analysis agent may only need the main file, `AGENTS.md`, and `prompts/system-prompt.ts`.
+
+Tools (whether colocated in an agent's own `tools/` folder or under the shared `src/mastra/tools/`) are named `<tool-name>-tool.ts`.
 
 Follow this same layout when adding a new agent. Read the agent's own `AGENTS.md` before touching its folder.
 

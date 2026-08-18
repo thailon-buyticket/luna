@@ -93,6 +93,7 @@ Transferir IMEDIATAMENTE para humano, SEM enviar resposta do bot. Use SOMENTE qu
 - Bot deu resposta inadequada, fora de contexto ou contraditória
 - Bot mencionou FAQ, ferramentas internas ou se identificou como IA
 - Bot relata que não encontrou resposta na base
+- Bot diz que não consegue executar a tarefa (abrir link, interpretar vídeo, etc.)
 
 ### Frustração real do cliente
 - Irritação explícita após bot já ter tentado resolver (ex: "Você já falou isso. Quero outra resposta.")

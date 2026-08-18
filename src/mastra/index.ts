@@ -8,20 +8,22 @@ import {
   Observability,
   SensitiveDataFilter,
 } from '@mastra/observability';
-import { luna } from './agents/luna/luna';
-import { customerTypeAgent } from './agents/luna-customer-type/luna-customer-type';
-import { documentAnalysisAgent } from './agents/luna-document-analysis/luna-document-analysis';
-import { lunaGuardrail } from './agents/luna-guardrail/luna-guardrail';
-import { imageAnalysisAgent } from './agents/luna-image-analysis/luna-image-analysis';
-import { lunaWorkingMemoryAgent } from './agents/luna-working-memory/luna-working-memory';
+import { luna } from './agents/luna/luna-agent';
+import { customerTypeAgent } from './agents/luna-customer-type/luna-customer-type-agent';
+import { documentAnalysisAgent } from './agents/luna-document-analysis/luna-document-analysis-agent';
+import { lunaGuardrail } from './agents/luna-guardrail/luna-guardrail-agent';
+import { imageAnalysisAgent } from './agents/luna-image-analysis/luna-image-analysis-agent';
+import { lunaWorkingMemoryAgent } from './agents/luna-working-memory/luna-working-memory-agent';
 import { lunaHistoryRoute, lunaReplyRoute } from './routes/luna-api';
 import { zendeskWebhookRoute } from './routes/zendesk-webhook';
+import { askLunaWorkflow } from './workflows/ask-luna-workflow';
 
 export const mastra = new Mastra({
   bundler: {
     externals: ['@duckdb/node-bindings'],
   },
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
+  workflows: { askLunaWorkflow },
   server: {
     apiRoutes: [lunaReplyRoute, lunaHistoryRoute, zendeskWebhookRoute],
   },
