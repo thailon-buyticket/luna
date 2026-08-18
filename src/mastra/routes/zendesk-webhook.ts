@@ -1,8 +1,8 @@
 import { registerApiRoute } from '@mastra/core/server';
 import type { ContextWithMastra } from '@mastra/core/server';
 import { conversationMessageSchema, zendeskWebhookSchema } from '../webhooks/zendesk';
-import { logConversationError } from '../webhooks/zendesk/logger';
-import { prepareZendeskMessage } from '../webhooks/zendesk/prepare-ask-luna-call';
+import { logConversationError } from '../helpers/logger';
+import { onMessageReceived } from '../webhooks/zendesk/on-new-message-received';
 import type { ZendeskConversationMessagePayload } from '../webhooks/zendesk/schema';
 import { parseOrBadRequest } from './validate';
 
@@ -40,7 +40,7 @@ async function startAskLunaWorkflow(
   payload: ZendeskConversationMessagePayload,
 ): Promise<void> {
   try {
-    const prepared = await prepareZendeskMessage(appId, payload);
+    const prepared = await onMessageReceived(appId, payload);
     if (!prepared.shouldAskLuna) return;
 
     const workflow = c.get('mastra').getWorkflow('askLunaWorkflow');

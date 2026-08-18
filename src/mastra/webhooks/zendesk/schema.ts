@@ -52,6 +52,29 @@ export const zendeskWebhookSchema = z.object({
   events: z.array(webhookEventSchema),
 });
 
+export interface AskLunaInput {
+  appId: string;
+  conversationId: string;
+  resourceId: string;
+  userPhone: string | null;
+  message: string;
+}
+
+export interface ConversationState {
+  isNewConversation: boolean;
+  resourceId: string;
+}
+
+export interface ZendeskUser {
+  phone?: string;
+}
+
+export interface ZendeskUserSearchResponse {
+  users: ZendeskUser[];
+}
+
+export type PreparedZendeskMessage = { shouldAskLuna: false } | { shouldAskLuna: true; input: AskLunaInput };
+
 export type ZendeskConversationMessagePayload = z.infer<typeof conversationMessageSchema>;
 export type ZendeskMessage = ZendeskConversationMessagePayload['message'];
 export type ZendeskMessageAuthor = z.infer<typeof authorSchema>;

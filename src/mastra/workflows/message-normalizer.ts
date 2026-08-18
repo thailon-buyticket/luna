@@ -1,13 +1,13 @@
-import { analyzeDocument } from '../../agents/luna-document-analysis/luna-document-analysis-agent';
-import { analyzeImage } from '../../agents/luna-image-analysis/luna-image-analysis-agent';
-import { transcribeAudio } from '../../services/openai-audio';
-import { logConversation } from './logger';
-import { PREDEFINED_MESSAGES } from '../../predefined-messages';
-import type { ZendeskMessageContent } from './schema';
+import { analyzeDocument } from '../agents/luna-document-analysis/luna-document-analysis-agent';
+import { analyzeImage } from '../agents/luna-image-analysis/luna-image-analysis-agent';
+import { transcribeAudio } from '../services/openai-audio';
+import { logConversation } from '../helpers/logger';
+import { PREDEFINED_MESSAGES } from '../predefined-messages';
+import type { ZendeskMessageContent } from '../webhooks/zendesk/schema';
 
 // Independente do tipo recebido, sempre resolve pro mesmo formato: um texto que a Luna
 // consegue processar como se fosse a mensagem original do cliente.
-export async function resolveMessageOutput(
+export async function normalizeMessageInput(
   conversationId: string,
   messageType: string,
   content: ZendeskMessageContent,

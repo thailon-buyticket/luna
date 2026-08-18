@@ -10,3 +10,10 @@ export function formatNow(now: Date): string {
 export function getCurrentHour(now: Date): number {
   return Number(new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, hour: 'numeric', hourCycle: 'h23' }).format(now));
 }
+
+// Mesma lógica do fuso fixo de `getCurrentHour`: usa o dia da semana em São Paulo, não o do
+// servidor, pra decidir se hoje conta como fim de semana pro horário de atendimento.
+export function isWeekend(now: Date): boolean {
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, weekday: 'short' }).format(now);
+  return weekday === 'Sat' || weekday === 'Sun';
+}

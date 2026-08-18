@@ -2,9 +2,8 @@ import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { Luna } from '../agents/luna/luna';
 import { guardrailActionSchema } from '../agents/luna/luna-agent';
-import { getHandoffNoticeMessage } from '../webhooks/zendesk/business-hours';
-import { logConversation } from '../webhooks/zendesk/logger';
-import { Zendesk, type ZendeskTicket } from '../webhooks/zendesk/zendesk-client';
+import { logConversation } from './helpers/logger';
+import { resolveBusinessByAppId } from '../business/registry';
 import { GuardrailDecision } from './helpers/guardrail-decision';
 
 // Foco no Zendesk, simples: quem chama esse workflow (webhooks/zendesk/prepare-ask-luna-call.ts)
@@ -12,9 +11,8 @@ import { GuardrailDecision } from './helpers/guardrail-decision';
 // 1. recebe a mensagem já pronta pra Luna
 // 2. manda pro agente
 // 3. decide responder e/ou conectar com base na resposta do agente (guardrail) — uma branch
-//    de verdade, um caminho por ação possível, cada um com os steps visíveis por baixo:
-//    mandar a resposta pro Zendesk, mandar o aviso (alto volume/fora do horário) e conectar
-//    (ou não) com o switchboard humano.
+//    de verdade, um caminho por ação possível: mandar a resposta pro Zendesk e, se for o caso,
+//    fazer o handoff pro time humano (aviso de negócio + switchboard, ver `Business`).
 
 const askLunaInputSchema = z.object({
   appId: z.string(),
@@ -34,8 +32,8 @@ const outcomeSchema = z.object({
   outcome: z.enum(['replied', 'connected_human', 'replied_and_connected_human']),
 });
 
-function ticketFor(inputData: { appId: string; conversationId: string }): ZendeskTicket {
-  return { appId: inputData.appId, conversationId: inputData.conversationId };
+function businessFor(inputData: { appId: string }) {
+  return resolveBusinessByAppId(inputData.appId);
 }
 
 const askLunaStep = createStep({
@@ -64,27 +62,14 @@ const sendReplyStep = createStep({
   outputSchema: guardrailResultSchema,
   execute: async ({ inputData }) => {
     if (inputData.answer) {
-      await Zendesk.sendMessage(ticketFor(inputData), inputData.answer);
+      await businessFor(inputData).channel.sendMessage(inputData.conversationId, inputData.answer);
     }
     return inputData;
   },
 });
 
-// Manda o aviso de alto volume ou fora do horário, antes de transferir pra um humano.
-const sendHandoffNoticeStep = createStep({
-  id: 'send-handoff-notice',
-  inputSchema: guardrailResultSchema,
-  outputSchema: guardrailResultSchema,
-  execute: async ({ inputData }) => {
-    const notice = getHandoffNoticeMessage();
-    if (notice) {
-      await Zendesk.sendMessage(ticketFor(inputData), notice);
-    }
-    return inputData;
-  },
-});
-
-// Conecta (ou não) a conversa com o switchboard humano, e fecha com o resultado final.
+// Decide se a conversa vai (ou não) pro time humano e, quando vai, faz o handoff completo:
+// aviso de negócio (horário/volume) + passagem de switchboard, ver `Business.handoffToHuman`.
 const connectToHumanStep = createStep({
   id: 'connect-to-human',
   inputSchema: guardrailResultSchema,
@@ -98,7 +83,7 @@ const connectToHumanStep = createStep({
     const { outcome, connectHuman } = decide(inputData.action);
 
     if (connectHuman) {
-      await Zendesk.connectHuman(ticketFor(inputData));
+      await businessFor(inputData).handoffToHuman(inputData.conversationId);
     }
     return { conversationId: inputData.conversationId, outcome };
   },
@@ -118,7 +103,6 @@ const connectOnlyWorkflow = createWorkflow({
   inputSchema: guardrailResultSchema,
   outputSchema: outcomeSchema,
 })
-  .then(sendHandoffNoticeStep)
   .then(connectToHumanStep)
   .commit();
 
@@ -130,7 +114,6 @@ const replyAndConnectWorkflow = createWorkflow({
   outputSchema: outcomeSchema,
 })
   .then(sendReplyStep)
-  .then(sendHandoffNoticeStep)
   .then(connectToHumanStep)
   .commit();
 
