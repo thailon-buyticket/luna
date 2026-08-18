@@ -1,4 +1,4 @@
-export function buildLunaWorkingMemoryPrompt(): string {
+export function buildSystemPrompt(): string {
   return `Você recebe o conteúdo atual da working memory da Luna (JSON) e o par mais recente (mensagem do cliente, resposta da Luna).
 
 Sua única tarefa é decidir se algo precisa ser adicionado, atualizado ou removido nestes campos:

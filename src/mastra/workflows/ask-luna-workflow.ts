@@ -1,6 +1,6 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { Luna } from '../agents/luna/ask';
+import { Luna } from '../agents/luna/luna';
 import { guardrailActionSchema } from '../agents/luna/luna-agent';
 import { getHandoffNoticeMessage } from '../webhooks/zendesk/business-hours';
 import { logConversation } from '../webhooks/zendesk/logger';

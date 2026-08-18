@@ -1,12 +1,12 @@
 import { Agent } from '@mastra/core/agent';
-import { buildCustomerTypePrompt } from './prompts/system-prompt';
+import { buildSystemPrompt } from './prompts/system-prompt';
 import { customerTypeOutputSchema } from './schema';
 
 export const customerTypeAgent = new Agent({
   id: 'luna-customer-type',
   name: 'Luna Customer Type',
   description: 'Classifica o contato em vendedor, comprador, parceiro/afiliado, imprensa, funcionário ou improdutivo.',
-  instructions: buildCustomerTypePrompt(),
+  instructions: buildSystemPrompt(),
   model: 'openai/gpt-4.1-mini',
   defaultOptions: {
     structuredOutput: {

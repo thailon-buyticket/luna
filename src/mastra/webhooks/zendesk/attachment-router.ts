@@ -2,7 +2,7 @@ import { analyzeDocument } from '../../agents/luna-document-analysis/luna-docume
 import { analyzeImage } from '../../agents/luna-image-analysis/luna-image-analysis-agent';
 import { transcribeAudio } from '../../services/openai-audio';
 import { logConversation } from './logger';
-import { predefinedMessage } from '../../predefined-messages';
+import { PREDEFINED_MESSAGES } from '../../predefined-messages';
 import type { ZendeskMessageContent } from './schema';
 
 // Independente do tipo recebido, sempre resolve pro mesmo formato: um texto que a Luna
@@ -16,8 +16,8 @@ export async function resolveMessageOutput(
   logConversation(conversationId, `analisando tipo de mensagem "${messageType}"...`);
 
   if (messageType === 'text') return content.text ?? '';
-  if (messageType === 'videoMessage') return predefinedMessage.media.video_unsupported;
-  if (messageType === 'stickerMessage') return predefinedMessage.media.sticker_unsupported;
+  if (messageType === 'videoMessage') return PREDEFINED_MESSAGES.media.video_unsupported;
+  if (messageType === 'stickerMessage') return PREDEFINED_MESSAGES.media.sticker_unsupported;
   if (messageType === 'image') return analyzeImage(requireMediaUrl(content), content.mediaType, userMessage);
 
   // Áudio do WhatsApp costuma chegar com message_type "file" e mediaType "audio/ogg" —
@@ -25,7 +25,7 @@ export async function resolveMessageOutput(
   if (content.mediaType === 'audio/ogg') return transcribeAudio(requireMediaUrl(content));
   if (messageType === 'file' && content.mediaUrl) return analyzeDocument(content.mediaUrl, content.mediaType, userMessage);
 
-  return predefinedMessage.media.file_placeholder;
+  return PREDEFINED_MESSAGES.media.file_placeholder;
 }
 
 function requireMediaUrl(content: ZendeskMessageContent): string {

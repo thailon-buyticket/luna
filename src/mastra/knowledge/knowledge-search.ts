@@ -1,8 +1,8 @@
 import { ModelRouterEmbeddingModel } from '@mastra/core/llm';
 import { embed } from 'ai';
-import { env } from '../../config/env';
-import { requireEnv } from '../../config/require-env';
-import { getPineconeIndexName, getPineconeStore } from '../../services/pinecone';
+import { env } from '../config/env';
+import { requireEnv } from '../config/require-env';
+import { getPineconeIndexName, getPineconeStore } from '../services/pinecone';
 
 const RESULTS_LIMIT = 4;
 
@@ -12,7 +12,7 @@ export interface KnowledgeSearchResult {
   text: string;
 }
 
-export async function searchLunaKnowledgeBase(query: string, knowledgeBaseSlug: string): Promise<KnowledgeSearchResult[]> {
+export async function searchKnowledgeOnVectorDB(query: string, knowledgeBaseSlug: string): Promise<KnowledgeSearchResult[]> {
   const { OPENAI_EMBEDDING_MODEL } = requireEnv(
     { OPENAI_EMBEDDING_MODEL: env.OPENAI_EMBEDDING_MODEL },
     'Pinecone embeddings',

@@ -1,11 +1,11 @@
 import { createMediaAnalysisAgent } from '../shared/media-analysis-agent';
-import { buildImageAnalysisPrompt } from './prompts/system-prompt';
+import { buildSystemPrompt } from './prompts/system-prompt';
 
 const { agent: imageAnalysisAgent, analyze: analyzeImage } = createMediaAnalysisAgent({
   id: 'luna-image-analysis',
   name: 'Luna Image Analysis',
   description: 'Descreve imagens enviadas pelo cliente para servir de input pra Luna.',
-  instructions: buildImageAnalysisPrompt(),
+  instructions: buildSystemPrompt(),
   model: 'openai/gpt-4.1-mini',
   buildMediaPart: (mediaUrl, mediaType) => ({ type: 'image', image: mediaUrl, mediaType: mediaType ?? 'image/jpeg' }),
 });

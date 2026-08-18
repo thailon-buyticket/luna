@@ -1,4 +1,4 @@
-export function buildCustomerTypePrompt(): string {
+export function buildSystemPrompt(): string {
   return `vendedor — Usuário com uma venda efetivada, vendeu algo pela plataforma, quer realizar um saque, enviou o ingresso para o comprador, está com problemas no recebimento de dinheiro pela plataforma, o comprador não responde, venda de ingresso, solicita cadastro de evento para vender ingresso.
 
 comprador — Usuário com compra efetivada, comprou pela plataforma, quer receber o ingresso, não recebeu o ingresso do vendedor, o vendedor não responde, está com problemas na compra de ingresso, não recebeu o ingresso, compra de ingresso, solicita cadastro de evento para comprar ingresso, quer criar uma conta.

@@ -1,9 +1,9 @@
 import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
-import { env } from '../../config/env';
-import { requireEnv } from '../../config/require-env';
-import { lunaWorkingMemorySchema } from '../luna-working-memory/schema';
-import { conversationMemoryExtractor } from './memory/conversation-memory-extractor';
+import { env } from '../../../config/env';
+import { requireEnv } from '../../../config/require-env';
+import { lunaWorkingMemorySchema } from '../../luna-working-memory/schema';
+import { conversationMemoryExtractor } from './conversation-memory-extractor';
 
 const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL }, 'Luna memory storage');
 

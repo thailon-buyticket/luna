@@ -1,6 +1,10 @@
 import { formatNow } from '../../../config/time';
 import type { HiveOpsIncident, HiveOpsKnowledgeBase, HiveOpsSkill } from '../../../hiveops';
 
+// Casada com o formato de `buildContextPrompt` abaixo — se o texto do "mensagem de sistema"
+// entre a mensagem do usuário e a lista de habilidades mudar, atualize este regex também.
+const CONTEXT_PROMPT_USER_MESSAGE_PATTERN = /^Mensagem enviada pelo usuário às[^\n]*:\n([\s\S]*?)\n\n\(Sempre verifique/;
+
 function formatSkillsList(skills: HiveOpsSkill[]): string {
   return skills.map((skill, index) => `${index} - '${skill.slug}': ${skill.intent}`).join('\n');
 }
@@ -15,10 +19,6 @@ function formatIncidentsSection(incidents: HiveOpsIncident[]): string {
   const incidentsList = incidents.map((incident) => `- ${incident.title}: ${incident.content}`).join('\n');
   return `Incidências ativas no momento (considere isso ao responder o cliente):\n${incidentsList}\n\n`;
 }
-
-// Casada com o formato de `buildContextPrompt` abaixo — se o texto do "mensagem de sistema"
-// entre a mensagem do usuário e a lista de habilidades mudar, atualize este regex também.
-const CONTEXT_PROMPT_USER_MESSAGE_PATTERN = /^Mensagem enviada pelo usuário às[^\n]*:\n([\s\S]*?)\n\n\(Sempre verifique/;
 
 // LunaContextProcessor grava esse texto "embrulhado" (habilidades, bases de conhecimento, etc.)
 // como o conteúdo persistido da mensagem do usuário. Quem só precisa da pergunta original do

@@ -1,7 +1,6 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { z } from 'zod';
-import { Luna, parseWorkingMemory } from '../agents/luna/ask';
-import { buildExchanges } from '../agents/luna/memory/transcript';
+import { Luna } from '../agents/luna/luna';
 import { parseOrBadRequest } from './validate';
 
 const bodySchema = z.object({
@@ -58,34 +57,26 @@ export const lunaHistoryRoute = registerApiRoute('/luna/history', {
     if (parsed instanceof Response) return parsed;
     const { thread, resource } = parsed;
 
-    const luna = c.get('mastra').getAgent('luna');
-    const lunaMemory = await luna.getMemory();
-    if (!lunaMemory) {
+    let result;
+    try {
+      result = await Luna.getMessageHistory(thread, resource);
+    } catch {
       return c.json({ error: 'memory_not_configured' }, 500);
     }
 
-    const existingThread = await lunaMemory.getThreadById({ threadId: thread });
-    if (!existingThread) {
-      return c.json({ history: [], working_memory: null });
+    switch (result.status) {
+      case 'not_found':
+        return c.json({ history: [], working_memory: null });
+      case 'resource_mismatch':
+        return c.json(
+          {
+            error: 'resource_mismatch',
+            message: `A thread '${thread}' pertence ao resource '${result.actualResource}', não '${resource}'.`,
+          },
+          400,
+        );
+      case 'ok':
+        return c.json({ history: result.history, working_memory: result.working_memory });
     }
-    if (existingThread.resourceId !== resource) {
-      return c.json(
-        {
-          error: 'resource_mismatch',
-          message: `A thread '${thread}' pertence ao resource '${existingThread.resourceId}', não '${resource}'.`,
-        },
-        400,
-      );
-    }
-
-    const [{ messages }, workingMemoryRaw] = await Promise.all([
-      lunaMemory.recall({ threadId: thread, resourceId: resource }),
-      lunaMemory.getWorkingMemory({ threadId: thread, resourceId: resource }),
-    ]);
-
-    return c.json({
-      history: buildExchanges(messages),
-      working_memory: parseWorkingMemory(workingMemoryRaw),
-    });
   },
 });

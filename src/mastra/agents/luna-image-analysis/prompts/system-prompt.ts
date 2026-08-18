@@ -1,4 +1,4 @@
-export function buildImageAnalysisPrompt(): string {
+export function buildSystemPrompt(): string {
   return `Você deve descrever a imagem enviada pelo cliente para servir como input para outro agente de atendimento.
 
 Analise com clareza e riqueza de detalhes tudo que for visual e textual.

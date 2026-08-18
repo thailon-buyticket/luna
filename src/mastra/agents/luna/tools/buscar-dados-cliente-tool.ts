@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { findLunaCustomerByPhone } from '../customer-lookup';
+import { zendeskRequest } from '../../../services/zendesk';
 
 export const buscarDadosClienteTool = createTool({
   id: 'buscar_dados_cliente',
@@ -40,7 +40,7 @@ nunca informe os dados da outra parte. é proibido dar os dados do vendedor pro 
       return { found: false };
     }
 
-    const userFields = await findLunaCustomerByPhone(phone);
+    const userFields = await searchCustomerOnZendeskByPhone(phone);
 
     if (!userFields) {
       return { found: false };
@@ -49,3 +49,20 @@ nunca informe os dados da outra parte. é proibido dar os dados do vendedor pro 
     return { found: true, user_fields: userFields };
   },
 });
+
+interface ZendeskUser {
+  id: number;
+  user_fields?: Record<string, unknown>;
+}
+
+interface ZendeskUserSearchResponse {
+  users: ZendeskUser[];
+}
+
+export async function searchCustomerOnZendeskByPhone(phone: string): Promise<Record<string, unknown> | null> {
+  const response = await zendeskRequest<ZendeskUserSearchResponse>(
+    `users/search.json?query=${encodeURIComponent(`phone:${phone}`)}`,
+  );
+
+  return response.users[0]?.user_fields ?? null;
+}

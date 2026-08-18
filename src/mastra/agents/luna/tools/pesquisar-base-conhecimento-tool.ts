@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { searchLunaKnowledgeBase } from '../knowledge-search';
+import { searchKnowledgeOnVectorDB } from '../../../knowledge/knowledge-search';
 
 export const pesquisarBaseConhecimentoTool = createTool({
   id: 'pesquisar_base_conhecimento',
@@ -27,7 +27,7 @@ Consulte esta base obrigatoriamente antes de responder. Se nenhuma base retornar
     ),
   }),
   execute: async ({ query, knowledge_base_slug }) => {
-    const results = await searchLunaKnowledgeBase(query, knowledge_base_slug);
+    const results = await searchKnowledgeOnVectorDB(query, knowledge_base_slug);
     return { results };
   },
 });

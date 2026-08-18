@@ -1,9 +1,9 @@
 import { Agent } from '@mastra/core/agent';
 import { guardrailActionSchema } from '../luna-guardrail/schema';
-import { LunaGuardrailProcessor } from '../luna-guardrail/output-processor';
-import { LunaWorkingMemoryProcessor } from '../luna-working-memory/output-processor';
-import { LunaContextProcessor } from './input-processor';
-import { lunaSupabaseMemory } from './luna-memory';
+import { LunaWorkingMemoryProcessor } from './processors/output-working-memory-processor';
+import { LunaGuardrailProcessor } from './processors/output-guardrail-processor';
+import { LunaContextProcessor } from './processors/input-context-processor';
+import { lunaSupabaseMemory } from './memory/luna-supabase-memory';
 import { buildSystemPrompt } from './prompts/system-prompt';
 import { buscarDadosClienteTool } from './tools/buscar-dados-cliente-tool';
 import { buscarHabilidadeTool } from './tools/buscar-habilidade-tool';

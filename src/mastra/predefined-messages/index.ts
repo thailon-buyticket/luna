@@ -1,6 +1,6 @@
 // Textos fixos usados em mais de um lugar, organizados por categoria — em vez de constantes
 // soltas espalhadas pelos arquivos que as usam.
-export const predefinedMessage = {
+export const PREDEFINED_MESSAGES = {
   business: {
     high_volume:
       'Atenção: devido ao alto volume de solicitações neste momento, nosso tempo de resposta pode ser maior do que o normal. Contamos com sua compreensão e não se preocupe: garantimos que vamos responder você assim que possível.',

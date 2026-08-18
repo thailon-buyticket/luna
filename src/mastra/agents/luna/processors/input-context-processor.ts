@@ -1,7 +1,7 @@
 import type { MastraDBMessage } from '@mastra/core/memory';
 import type { Processor, ProcessInputArgs } from '@mastra/core/processors';
-import { getHiveOps } from '../../hiveops';
-import { buildContextPrompt } from './prompts/context-prompt';
+import { getHiveOps } from '../../../hiveops';
+import { buildContextPrompt } from '../prompts/context-prompt';
 
 export class LunaContextProcessor implements Processor {
   readonly id = 'luna-context-processor';

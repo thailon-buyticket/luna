@@ -1,6 +1,6 @@
 import { formatNow } from '../../../config/time';
 
-export function buildGuardrailPrompt(now: Date): string {
+export function buildSystemPrompt(now: Date): string {
   const formattedNow = formatNow(now);
 
   return `Guardrail — Classificação de Output da Luna

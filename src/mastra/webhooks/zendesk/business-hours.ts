@@ -1,6 +1,6 @@
 import { env } from '../../config/env';
 import { getCurrentHour } from '../../config/time';
-import { predefinedMessage } from '../../predefined-messages';
+import { PREDEFINED_MESSAGES } from '../../predefined-messages';
 
 // Horário de atendimento é sempre em horário de São Paulo (ver `getCurrentHour`), não importa
 // onde o servidor estiver rodando. 10h–20h por padrão; configurável via env sem mexer no código.
@@ -24,7 +24,7 @@ function isHighVolume(): boolean {
 // - Dentro do horário e sem alto volume: nenhum aviso configurado ainda — retorna null e a
 //   transferência acontece em silêncio.
 export function getHandoffNoticeMessage(now: Date = new Date()): string | null {
-  if (!isWithinBusinessHours(now)) return predefinedMessage.business.outside_hours;
-  if (isHighVolume()) return predefinedMessage.business.high_volume;
+  if (!isWithinBusinessHours(now)) return PREDEFINED_MESSAGES.business.outside_hours;
+  if (isHighVolume()) return PREDEFINED_MESSAGES.business.high_volume;
   return null;
 }
