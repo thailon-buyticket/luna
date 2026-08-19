@@ -16,6 +16,9 @@ import { parseOrBadRequest } from './validate';
 // tempo da mesma conversa (buffer) e manda pra Luna, aplicando a decisão do guardrail.
 export const zendeskWebhookRoute = registerApiRoute('/webhooks/zendesk', {
   method: 'POST',
+  // O Zendesk chama esse endpoint sem o header Authorization da nossa API — precisa ficar
+  // fora da autenticação (SimpleAuth) configurada no server.
+  requiresAuth: false,
   openapi: {
     summary: 'Recebe eventos de conversa do Zendesk (WhatsApp)',
     description:

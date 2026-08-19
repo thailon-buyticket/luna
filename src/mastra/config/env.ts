@@ -9,6 +9,9 @@ const optionalEmail = () => z.preprocess(emptyToUndefined, z.string().email().op
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required'),
   OPENAI_MODEL: optionalString(),
+  // Token exigido no header Authorization (Bearer <token>) pra acessar qualquer rota da API,
+  // exceto o webhook do Zendesk (que não manda esse header).
+  LUNA_API_KEY: z.string().min(1, 'LUNA_API_KEY is required'),
   OPENAI_EMBEDDING_MODEL: optionalString(),
   GOOGLE_GENERATIVE_AI_API_KEY: optionalString(),
 

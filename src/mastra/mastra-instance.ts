@@ -1,4 +1,5 @@
 import { Mastra } from '@mastra/core/mastra';
+import { SimpleAuth } from '@mastra/core/server';
 import { PostgresStore } from '@mastra/pg';
 import { DuckDBStore } from '@mastra/duckdb';
 import { PinoLogger } from '@mastra/loggers';
@@ -33,6 +34,9 @@ export const mastra = new Mastra({
   logger: new PinoLogger({ name: 'Mastra', level: 'info' }),
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
   server: {
+    // Toda rota exige "Authorization: Bearer <LUNA_API_KEY>", exceto o webhook do Zendesk
+    // (que não manda esse header) — ele opta por fora com `requiresAuth: false` na própria rota.
+    auth: new SimpleAuth({ tokens: { [env.LUNA_API_KEY]: { id: 'luna-api' } } }),
     apiRoutes: [lunaAsk, lunaHistoryRoute, zendeskWebhookRoute],
   },
   storage: new MastraCompositeStore({
