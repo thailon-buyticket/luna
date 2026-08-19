@@ -25,10 +25,11 @@ TODO: listar regras e restrições específicas deste agente (o que ele pode/nã
 - `luna-agent.ts` — definição do `Agent` do Mastra, registrado em `src/mastra/index.ts`.
 - `luna-memory.ts` — a `Memory` da Luna (extraída de `luna-agent.ts` pra evitar import circular com `agents/luna-working-memory/output-processor.ts`, que importa essa instância diretamente).
 - `prompts/system-prompt.ts` — system prompt do agente (`instructions`).
-- `prompts/context-prompt.ts` — texto enviado junto com toda mensagem do usuário, dando contexto sobre skills/habilidades disponíveis.
-- `knowledge-search.ts` / `customer-lookup.ts` — acesso a dados que não vêm do HiveOps (Pinecone, Zendesk), usados pelas tools em `tools/`. Habilidades, bases de conhecimento, incidências e tarefas vêm do HiveOps (`getHiveOps()`, ver `hiveops/AGENTS.md`), não de arquivos aqui dentro.
-- `tools/` — as tools da Luna (`buscar_habilidade`, `pesquisar_base_conhecimento`, `criar_tarefa`, `buscar_dados_cliente`).
-- `input-processor.ts` — injeta habilidades, bases de conhecimento e incidências ativas na mensagem do usuário antes de chegar no modelo.
+- `prompts/context-prompt.ts` — texto enviado junto com toda mensagem do usuário, dando contexto sobre skills/habilidades disponíveis e (na 1ª mensagem) os dados do cliente.
+- `customer-lookup.ts` — busca de `user_fields` no Zendesk por telefone. Não é uma tool: é chamada deterministicamente pelo `LunaContextProcessor` (`processors/input-context-processor.ts`) só na 1ª mensagem de cada thread (detectado contando mensagens `role: 'user'` no prompt já reconstruído pela memória), e o resultado é injetado no texto de contexto — a Luna nunca decide se/quando buscar.
+- `knowledge-search.ts` — acesso a dados que não vêm do HiveOps (Pinecone), usado pelas tools em `tools/`. Habilidades, bases de conhecimento, incidências e tarefas vêm do HiveOps (`getHiveOps()`, ver `hiveops/AGENTS.md`), não de arquivos aqui dentro.
+- `tools/` — as tools ativas da Luna (`buscar_habilidade`, `pesquisar_base_conhecimento`, `criar_tarefa`). Também guarda `buscar-dados-cliente-tool.ts` (`buscarDadosClienteTool`), mantida pronta para uso futuro mas **não registrada** em `luna-agent.ts` — hoje a busca de dados do cliente é feita por `customer-lookup.ts`, não por essa tool.
+- `processors/input-context-processor.ts` — injeta habilidades, bases de conhecimento, incidências ativas e dados do cliente (1ª mensagem) na mensagem do usuário antes de chegar no modelo.
 - `memory/` — a memória observacional (`conversation_memory`) da Luna. Ver seção abaixo.
 
 ## Memória de conversa (`conversation_memory`)

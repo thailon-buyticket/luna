@@ -5,7 +5,6 @@ import { LunaGuardrailProcessor } from './processors/output-guardrail-processor'
 import { LunaContextProcessor } from './processors/input-context-processor';
 import { lunaSupabaseMemory } from './memory/luna-supabase-memory';
 import { buildSystemPrompt } from './prompts/system-prompt';
-import { buscarDadosClienteTool } from './tools/buscar-dados-cliente-tool';
 import { buscarHabilidadeTool } from './tools/buscar-habilidade-tool';
 import { criarTarefaTool } from './tools/criar-tarefa-tool';
 import { pesquisarBaseConhecimentoTool } from './tools/pesquisar-base-conhecimento-tool';
@@ -43,7 +42,6 @@ export const luna = new Agent({
     buscar_habilidade: buscarHabilidadeTool,
     pesquisar_base_conhecimento: pesquisarBaseConhecimentoTool,
     criar_tarefa: criarTarefaTool,
-    buscar_dados_cliente: buscarDadosClienteTool,
   },
   inputProcessors: [new LunaContextProcessor()],
   outputProcessors: [new LunaGuardrailProcessor(), new LunaWorkingMemoryProcessor()],

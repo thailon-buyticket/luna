@@ -20,6 +20,19 @@ function formatIncidentsSection(incidents: HiveOpsIncident[]): string {
   return `Incidências ativas no momento (considere isso ao responder o cliente):\n${incidentsList}\n\n`;
 }
 
+export type CustomerLookupResult = { found: true; userFields: Record<string, unknown> } | { found: false } | null;
+
+// `null` = não é a 1ª mensagem da conversa, então a busca nem rodou (não precisa rodar de novo).
+function formatCustomerDataSection(customerData: CustomerLookupResult): string {
+  if (customerData === null) return '';
+
+  if (!customerData.found) {
+    return 'Dados do cliente (busca automática): indisponíveis. Dados indisponíveis. Siga com a triagem e o que o prompt e a base de conhecimento mandar.\n\n';
+  }
+
+  return `Dados do cliente (busca automática, user_fields):\n${JSON.stringify(customerData.userFields, null, 2)}\n\n`;
+}
+
 // LunaContextProcessor embrulha o texto (habilidades, bases de conhecimento, etc.) só no prompt
 // enviado ao model via processLLMRequest — isso nunca é persistido. Esta função só existe pra
 // desembrulhar mensagens antigas que ficaram gravadas assim antes dessa mudança.
@@ -34,15 +47,17 @@ export function buildContextPrompt(
   skills: HiveOpsSkill[],
   knowledgeBases: HiveOpsKnowledgeBase[],
   incidents: HiveOpsIncident[],
+  customerData: CustomerLookupResult,
 ): string {
   const skillsList = formatSkillsList(skills);
   const knowledgeBasesList = formatKnowledgeBasesList(knowledgeBases);
   const incidentsSection = formatIncidentsSection(incidents);
+  const customerDataSection = formatCustomerDataSection(customerData);
 
   return `Mensagem enviada pelo usuário às ${formatNow(now)}:
 ${userMessage}
 
-Habilidades disponíveis:
+${customerDataSection}Habilidades disponíveis:
 ${skillsList}
 
 Escolha o knowledge_base_slug conforme o contexto:
