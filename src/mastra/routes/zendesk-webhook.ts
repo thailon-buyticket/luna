@@ -54,7 +54,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
   const zendeskPayload = normalizeIncomingMessage(appId, payload);
   logConversation(
     zendeskPayload.conversationId,
-    `mensagem recebida de "${zendeskPayload.userName ?? 'desconhecido'}" às ${zendeskPayload.messageTimestamp} (tipo: ${zendeskPayload.mediaType}, origem: ${zendeskPayload.isFromCompany ? 'empresa' : 'cliente'})`,
+    `mensagem recebida de "${zendeskPayload.userName ?? 'desconhecido'}" (${zendeskPayload.mediaType}, origem: ${zendeskPayload.isFromCompany ? 'empresa' : 'cliente'})`,
   );
 
   if (zendeskPayload.isFromCompany) {

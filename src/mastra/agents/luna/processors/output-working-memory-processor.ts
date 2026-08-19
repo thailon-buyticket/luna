@@ -5,6 +5,7 @@ import { messagesToTranscript } from '../memory/transcript';
 import { lunaSupabaseMemory } from '../memory/luna-supabase-memory';
 import { lunaWorkingMemoryAgent } from '../../luna-working-memory/luna-working-memory-agent';
 import { classifyCustomerType } from '../../luna-customer-type/luna-customer-type-agent';
+import { logConversationError } from '../../../helpers/logger';
 
 
 export class LunaWorkingMemoryProcessor implements Processor {
@@ -22,7 +23,7 @@ export class LunaWorkingMemoryProcessor implements Processor {
       try {
         await this.updateWorkingMemory({ threadId, resourceId, userMessage, botAnswer, transcript });
       } catch (error) {
-        console.error('[luna-working-memory] falha ao atualizar working memory', error);
+        logConversationError(threadId, 'falha ao atualizar working memory', error);
       }
     }
 

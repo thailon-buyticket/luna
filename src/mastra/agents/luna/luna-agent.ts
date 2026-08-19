@@ -29,7 +29,7 @@ export const luna = new Agent({
     ],
   },
   instructions: buildSystemPrompt(),
-  model: 'openai/gpt-4.1-mini',
+  model: 'openai/gpt-4.1',
   defaultOptions: {
     maxSteps: 10,
     autoResumeSuspendedTools: true,
