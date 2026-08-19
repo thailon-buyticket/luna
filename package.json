@@ -22,10 +22,10 @@
     "@mastra/loggers": "latest",
     "@mastra/memory": "latest",
     "@mastra/observability": "latest",
-    "@mastra/pg": "^1.20.0",
+    "@mastra/pg": "^1.21.0",
     "@mastra/pinecone": "^1.1.0",
     "@supabase/supabase-js": "^2.112.3",
-    "ai": "^7.0.66",
+    "ai": "^7.0.69",
     "zod": "^4.4.3"
   },
   "devDependencies": {
