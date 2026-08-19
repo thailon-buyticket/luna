@@ -1,5 +1,5 @@
 import { Mastra } from '@mastra/core/mastra';
-import { LibSQLStore } from '@mastra/libsql';
+import { PostgresStore } from '@mastra/pg';
 import { DuckDBStore } from '@mastra/duckdb';
 import { PinoLogger } from '@mastra/loggers';
 import { MastraCompositeStore } from '@mastra/core/storage';
@@ -9,6 +9,8 @@ import {
   Observability,
   SensitiveDataFilter,
 } from '@mastra/observability';
+import { env } from './config/env';
+import { requireEnv } from './config/require-env';
 import { luna } from './agents/luna/luna-agent';
 import { customerTypeAgent } from './agents/luna-customer-type/luna-customer-type-agent';
 import { documentAnalysisAgent } from './agents/luna-document-analysis/luna-document-analysis-agent';
@@ -22,6 +24,8 @@ import { zendeskWebhookRoute } from './routes/zendesk-webhook';
 // compatibilidade de spec (v2 -> v3) — o fallback automático já cobre, é só ruído no log.
 (globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
 
+const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL }, 'Mastra storage');
+
 export const mastra = new Mastra({
   bundler: {
     externals: ['@duckdb/node-bindings'],
@@ -33,11 +37,7 @@ export const mastra = new Mastra({
   },
   storage: new MastraCompositeStore({
     id: 'composite-storage',
-    default: new LibSQLStore({
-      id: 'mastra-storage',
-      url: process.env.TURSO_DATABASE_URL || 'file:./mastra.db',
-      authToken: process.env.TURSO_AUTH_TOKEN || undefined,
-    }),
+    default: new PostgresStore({ id: 'mastra-storage', connectionString: SUPABASE_DB_URL }),
     domains: {
       observability: await new DuckDBStore().getStore('observability'),
     },
