@@ -8,6 +8,7 @@
         "@mastra/core": "latest",
         "@mastra/duckdb": "latest",
         "@mastra/libsql": "latest",
+        "@mastra/loggers": "latest",
         "@mastra/memory": "latest",
         "@mastra/observability": "latest",
         "@mastra/pg": "^1.20.0",
