@@ -60,11 +60,6 @@ export interface AskLunaInput {
   message: string;
 }
 
-export interface ConversationState {
-  isNewConversation: boolean;
-  resourceId: string;
-}
-
 export interface ZendeskUser {
   phone?: string;
 }
@@ -72,8 +67,6 @@ export interface ZendeskUser {
 export interface ZendeskUserSearchResponse {
   users: ZendeskUser[];
 }
-
-export type PreparedZendeskMessage = { shouldAskLuna: false } | { shouldAskLuna: true; input: AskLunaInput };
 
 export type ZendeskConversationMessagePayload = z.infer<typeof conversationMessageSchema>;
 export type ZendeskMessage = ZendeskConversationMessagePayload['message'];

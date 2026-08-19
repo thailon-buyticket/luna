@@ -14,6 +14,7 @@ export const lunaSupabaseMemory = new Memory({
   storage: new PostgresStore({ id: 'luna-memory-storage', connectionString: SUPABASE_DB_URL }),
   options: {
     generateTitle: false,
+    lastMessages: 15,
     observationalMemory: {
       model: 'openai/gpt-5.6-luna',
       observation: {

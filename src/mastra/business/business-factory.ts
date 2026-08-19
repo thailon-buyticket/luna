@@ -1,6 +1,5 @@
 import { getCurrentHour, isWeekend } from '../config/time';
 import { PREDEFINED_MESSAGES } from '../predefined-messages';
-import type { Channel } from './channel';
 
 export interface WorkingHoursRange {
   start: number;
@@ -15,24 +14,27 @@ export interface WorkingHours {
 export interface BusinessConfig {
   name: string;
   id: string | undefined;
+  // `app.id` do webhook do Zendesk (Sunshine Conversations) — é o que liga um evento recebido a
+  // esta empresa no `business/registry.ts`. `undefined` até `ZENDESK_APP_ID` ser configurado.
+  appId: string | undefined;
   workingHours: WorkingHours;
-  channel: Channel;
 }
 
 export interface Business {
   readonly name: string;
   readonly id: string | undefined;
-  readonly channel: Channel;
+  readonly appId: string | undefined;
   isWithinWorkingHours(now?: Date): boolean;
   isHighVolume(): boolean;
   getHandoffNoticeMessage(now?: Date): string | null;
-  handoffToHuman(conversationId: string): Promise<void>;
 }
 
-// Uma empresa cadastrada no sistema: regras de negócio (horário de atendimento, volume de
-// conversas, aviso de handoff) mais o canal (Zendesk, WhatsApp etc) por onde ela fala com o
-// cliente. Cada empresa registrada vive em `business/<nome>.ts` e entra no lookup em
-// `business/registry.ts`, que resolve qual empresa trata cada webhook recebido.
+// Regras de negócio de uma empresa cadastrada no sistema: horário de atendimento, volume de
+// conversas, aviso antes de transferir pra um humano. Só isso — nenhuma dependência de canal
+// (Zendesk, WhatsApp) ou de fonte de dados (HiveOps) mora aqui, só cálculo puro em cima da
+// config. Enviar mensagens e trocar de switchboard é responsabilidade de quem chama (ver
+// `webhooks/zendesk/zendesk.ts`). Cada empresa registrada vive em `business/<nome>.ts` e entra
+// no lookup em `business/registry.ts`.
 export function Business(config: BusinessConfig): Business {
   function isWithinWorkingHours(now: Date = new Date()): boolean {
     const hour = getCurrentHour(now);
@@ -57,21 +59,12 @@ export function Business(config: BusinessConfig): Business {
     return null;
   }
 
-  // Avisa o cliente (regra de negócio acima) e só então devolve a conversa pro time humano —
-  // as duas coisas sempre andam juntas num handoff, independente do canal.
-  async function handoffToHuman(conversationId: string): Promise<void> {
-    const notice = getHandoffNoticeMessage();
-    if (notice) await config.channel.sendMessage(conversationId, notice);
-    await config.channel.connectHuman(conversationId);
-  }
-
   return {
     name: config.name,
     id: config.id,
-    channel: config.channel,
+    appId: config.appId,
     isWithinWorkingHours,
     isHighVolume,
     getHandoffNoticeMessage,
-    handoffToHuman,
   };
 }

@@ -29,6 +29,7 @@ const envSchema = z.object({
   ZENDESK_APP_ID: optionalString(),
   ZENDESK_HUMAN_SWITCHBOARD_ID: optionalString(),
   ZENDESK_AI_AGENT_SWITCHBOARD_ID: optionalString(),
+  ZENDESK_CONVERSATIONS_API_KEY_ID: optionalString(),
   ZENDESK_CONVERSATIONS_API_KEY: optionalString(),
 
   LUNA_MESSAGE_BUFFER_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),

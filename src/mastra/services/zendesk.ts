@@ -46,7 +46,10 @@ const ZENDESK_CONVERSATIONS_BASE_URL = 'https://api.smooch.io/v2';
 
 function getZendeskConversationsCredentials() {
   return requireEnv(
-    { ZENDESK_CONVERSATIONS_API_KEY: env.ZENDESK_CONVERSATIONS_API_KEY },
+    {
+      ZENDESK_CONVERSATIONS_API_KEY_ID: env.ZENDESK_CONVERSATIONS_API_KEY_ID,
+      ZENDESK_CONVERSATIONS_API_KEY: env.ZENDESK_CONVERSATIONS_API_KEY,
+    },
     'Zendesk Conversations',
   );
 }
@@ -56,15 +59,15 @@ export async function zendeskConversationsRequest<T>(
   path: string,
   options: ZendeskRequestOptions = {},
 ): Promise<T> {
-  const { ZENDESK_CONVERSATIONS_API_KEY } = getZendeskConversationsCredentials();
+  const { ZENDESK_CONVERSATIONS_API_KEY_ID, ZENDESK_CONVERSATIONS_API_KEY } = getZendeskConversationsCredentials();
 
   const response = await fetchOrThrow(
     `${ZENDESK_CONVERSATIONS_BASE_URL}/apps/${appId}/${path}`,
     {
       method: options.method ?? 'GET',
       headers: {
-        // Basic auth com a API key como usuário e senha vazia (equivalente a `curl -u "API_KEY:"`).
-        Authorization: basicAuthHeader(`${ZENDESK_CONVERSATIONS_API_KEY}:`),
+        // Basic auth com a API key ID como usuário e a API key como senha (equivalente a `curl -u "KEY_ID:KEY"`).
+        Authorization: basicAuthHeader(`${ZENDESK_CONVERSATIONS_API_KEY_ID}:${ZENDESK_CONVERSATIONS_API_KEY}`),
         'Content-Type': 'application/json',
       },
       body: options.body ? JSON.stringify(options.body) : undefined,

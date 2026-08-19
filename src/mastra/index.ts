@@ -16,14 +16,16 @@ import { imageAnalysisAgent } from './agents/luna-image-analysis/luna-image-anal
 import { lunaWorkingMemoryAgent } from './agents/luna-working-memory/luna-working-memory-agent';
 import { lunaHistoryRoute, lunaAsk } from './routes/luna-api';
 import { zendeskWebhookRoute } from './routes/zendesk-webhook';
-import { askLunaWorkflow } from './workflows/ask-luna-workflow';
+
+// Silencia os warnings do AI SDK sobre o embedding model do Mastra rodar em modo de
+// compatibilidade de spec (v2 -> v3) — o fallback automático já cobre, é só ruído no log.
+(globalThis as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
 
 export const mastra = new Mastra({
   bundler: {
     externals: ['@duckdb/node-bindings'],
   },
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
-  workflows: { askLunaWorkflow },
   server: {
     apiRoutes: [lunaAsk, lunaHistoryRoute, zendeskWebhookRoute],
   },

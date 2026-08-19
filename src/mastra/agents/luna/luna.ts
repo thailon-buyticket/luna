@@ -75,4 +75,4 @@ async function getMessageHistory(thread: string, resource: string): Promise<Luna
   };
 }
 
-export const Luna = { ask, getMessageHistory };
+export const Luna = { id: 'Luna', ask, getMessageHistory};
