@@ -16,7 +16,7 @@ export const lunaSupabaseMemory = new Memory({
     generateTitle: false,
     lastMessages: 15,
     observationalMemory: {
-      model: 'openai/gpt-5.6-luna',
+      model: 'openai/gpt-4.1-mini',
       observation: {
         extract: [conversationMemoryExtractor],
       },

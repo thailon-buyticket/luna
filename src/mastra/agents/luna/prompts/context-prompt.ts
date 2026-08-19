@@ -20,9 +20,9 @@ function formatIncidentsSection(incidents: HiveOpsIncident[]): string {
   return `Incidências ativas no momento (considere isso ao responder o cliente):\n${incidentsList}\n\n`;
 }
 
-// LunaContextProcessor grava esse texto "embrulhado" (habilidades, bases de conhecimento, etc.)
-// como o conteúdo persistido da mensagem do usuário. Quem só precisa da pergunta original do
-// cliente (ex: o guardrail) usa isso para tirar o embrulho de mensagens antigas do histórico.
+// LunaContextProcessor embrulha o texto (habilidades, bases de conhecimento, etc.) só no prompt
+// enviado ao model via processLLMRequest — isso nunca é persistido. Esta função só existe pra
+// desembrulhar mensagens antigas que ficaram gravadas assim antes dessa mudança.
 export function extractUserMessageFromContextPrompt(text: string): string {
   const match = CONTEXT_PROMPT_USER_MESSAGE_PATTERN.exec(text);
   return match ? match[1] : text;
@@ -42,15 +42,14 @@ export function buildContextPrompt(
   return `Mensagem enviada pelo usuário às ${formatNow(now)}:
 ${userMessage}
 
-(Sempre verifique alguma F.A.Q e habilidade antes de responder. SEMPRE pesquise a dúvida do cliente mesmo se a informação já estiver no system message)
-
 Habilidades disponíveis:
 ${skillsList}
 
 Escolha o knowledge_base_slug conforme o contexto:
-
 ${knowledgeBasesList}
 
-${incidentsSection}[Mensagem do sistema: Se o cliente pedir para falar com o atendente, não diga que irá transferir de imediato, primeiro você precisa atender o problema para direcionar para o especialista correto. Somente após a análise concluída, você deve informar que irá transferir]
+${incidentsSection}
+[Mensagem do sistema: Se o cliente pedir para falar com o atendente, não diga que irá transferir de imediato, primeiro você precisa atender o problema para direcionar para o especialista correto. Somente após a análise concluída, você deve informar que irá transferir]
 `;
 }
+// (Sempre verifique alguma F.A.Q e habilidade antes de responder. SEMPRE pesquise a dúvida do cliente mesmo se a informação já estiver no system message)

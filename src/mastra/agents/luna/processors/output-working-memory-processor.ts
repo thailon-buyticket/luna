@@ -4,7 +4,6 @@ import { deepMergeWorkingMemory } from '@mastra/memory';
 import { messagesToTranscript } from '../memory/transcript';
 import { lunaSupabaseMemory } from '../memory/luna-supabase-memory';
 import { lunaWorkingMemoryAgent } from '../../luna-working-memory/luna-working-memory-agent';
-import { classifyCustomerType } from '../../luna-customer-type/luna-customer-type-agent';
 import { logConversationError } from '../../../helpers/logger';
 
 
@@ -46,15 +45,11 @@ export class LunaWorkingMemoryProcessor implements Processor {
     const currentRaw = await lunaSupabaseMemory.getWorkingMemory({ threadId, resourceId });
     const current = currentRaw ? JSON.parse(currentRaw) : {};
 
-    const [{ object: update }, tipoCliente] = await Promise.all([
-      lunaWorkingMemoryAgent.generate(
-        `Working memory atual:\n${JSON.stringify(current)}\n\nMensagem do cliente: ${userMessage}\nResposta da Luna: ${botAnswer}`,
-      ),
-      classifyCustomerType(transcript),
-    ]);
+    const { object: update } = await lunaWorkingMemoryAgent.generate(
+      `Working memory atual:\n${JSON.stringify(current)}\n\nMensagem do cliente: ${userMessage}\nResposta da Luna: ${botAnswer}\n\nTranscript completo da conversa (use para classificar tipo_cliente):\n${transcript}`,
+    );
 
-    const combinedUpdate = { ...update, tipo_cliente: tipoCliente };
-    const merged = deepMergeWorkingMemory(current, combinedUpdate);
+    const merged = deepMergeWorkingMemory(current, update);
     await lunaSupabaseMemory.updateWorkingMemory({ threadId, resourceId, workingMemory: JSON.stringify(merged) });
   }
 }

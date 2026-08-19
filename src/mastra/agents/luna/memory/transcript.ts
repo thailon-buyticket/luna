@@ -11,8 +11,10 @@ export function getMessageText(message: MastraDBMessage): string {
 export function messagesToTranscript(messages: MastraDBMessage[]): string {
   return messages
     .map((message) => {
-      const text = getMessageText(message);
-      return text ? `${message.role}: ${text}` : undefined;
+      const rawText = getMessageText(message);
+      if (!rawText) return undefined;
+      const text = message.role === 'user' ? extractUserMessageFromContextPrompt(rawText) : rawText;
+      return `${message.role}: ${text}`;
     })
     .filter((line): line is string => Boolean(line))
     .join('\n');
