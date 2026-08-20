@@ -4,7 +4,7 @@ Leia este arquivo antes de alterar qualquer coisa nesta pasta.
 
 ## Objetivo
 
-Decide o que deve ser adicionado, atualizado ou removido na working memory da Luna — `id_pedido`, `nome_evento`, `nome_cliente`, `evento_hoje`, `motivo_contato` e `tipo_cliente` — a partir do par mais recente (mensagem do cliente, resposta da Luna) e da transcript completa da conversa. `id_pedido` e `nome_evento` são prioridade: o agente deve tentar descobri-los ativamente sempre que possível (inclusive olhando o que a Luna já respondeu, não só o que o cliente escreveu), em vez de só preencher quando o cliente repete o dado explicitamente.
+Decide o que deve ser adicionado, atualizado ou removido na working memory da Luna — `id_pedido`, `nome_evento`, `nome_cliente`, `evento_hoje`, `motivo_contato` e `tipo_cliente` — a partir do par mais recente (mensagem do cliente, resposta da Luna) e da transcript completa da conversa. `id_pedido`, `nome_evento` e `evento_hoje` são prioridade: o agente deve tentar descobri-los ativamente sempre que possível (inclusive olhando o que a Luna já respondeu, não só o que o cliente escreveu), em vez de só preencher quando o cliente repete o dado explicitamente. `evento_hoje` é a mais importante das três — é ela que prioriza o atendimento pro time humano no handoff (via `agents/tags/`/`webhooks/zendesk/handoff-tags.ts`) — por isso é reavaliada a cada troca, igual `tipo_cliente`, mesmo sem mudança.
 
 ## Relação com outros agentes
 
