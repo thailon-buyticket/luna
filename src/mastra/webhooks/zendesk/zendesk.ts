@@ -112,6 +112,20 @@ export function normalizeIncomingMessage(
   };
 }
 
+// Telefone só, dígitos com "+" opcional na frente — protege contra `additionalIdentifiers` trazer
+// outro tipo de identificador na posição 0 (ex.: um wamid do WhatsApp em vez do telefone). Isso já
+// aconteceu de verdade: um identifier não-telefone virou `userPhone` sem validação, e como
+// `userPhone` é usado como `resourceId` sem prefixo (`routes/zendesk-webhook.ts`), quebrou o dono
+// da thread na memória ("Thread X belongs to resource Y but resource <wamid> was provided").
+function isLikelyPhoneNumber(value: string | undefined): value is string {
+  return Boolean(value) && /^\+?\d{8,15}$/.test(value as string);
+}
+
 function resolveUserPhone(message: ZendeskMessage): string | null {
-  return message.source?.client?.additionalIdentifiers?.[0]?.value ?? message.source?.client?.raw?.from ?? null;
+  const identifiers = message.source?.client?.additionalIdentifiers ?? [];
+  const phoneIdentifier = identifiers.find((identifier) => isLikelyPhoneNumber(identifier.value))?.value;
+  if (phoneIdentifier) return phoneIdentifier;
+
+  const rawFrom = message.source?.client?.raw?.from;
+  return isLikelyPhoneNumber(rawFrom) ? rawFrom : null;
 }
