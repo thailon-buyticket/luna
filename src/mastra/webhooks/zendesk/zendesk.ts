@@ -20,15 +20,31 @@ export const zendesk = {
     });
   },
 
-  async connectHuman(appId: string, conversationId: string): Promise<void> {
+  // `tags` vira `dataCapture.systemField.tags` no Zendesk (string separada por vírgula) e
+  // `ticketFields` vira um `dataCapture.ticketField.<id>` por entrada — usado pelo time de suporte
+  // pra tabular o atendimento. Quem monta os dois é `handoff-tags.ts`/`ticket-fields.ts`, nunca
+  // esta função — aqui só serializa pro formato que o Zendesk espera.
+  async connectHuman(
+    appId: string,
+    conversationId: string,
+    options: { tags?: string[]; ticketFields?: Record<string, string> } = {},
+  ): Promise<void> {
     const { ZENDESK_HUMAN_SWITCHBOARD_ID } = requireEnv(
       { ZENDESK_HUMAN_SWITCHBOARD_ID: env.ZENDESK_HUMAN_SWITCHBOARD_ID },
       'Zendesk human switchboard',
     );
 
+    const metadata: Record<string, string> = { lang: 'pt-br' };
+    if (options.tags?.length) {
+      metadata['dataCapture.systemField.tags'] = options.tags.join(',');
+    }
+    for (const [fieldId, value] of Object.entries(options.ticketFields ?? {})) {
+      metadata[`dataCapture.ticketField.${fieldId}`] = value;
+    }
+
     await zendeskConversationsRequest(appId, `conversations/${conversationId}/passControl`, {
       method: 'POST',
-      body: { switchboardIntegration: ZENDESK_HUMAN_SWITCHBOARD_ID, metadata: { lang: 'pt-br' } },
+      body: { switchboardIntegration: ZENDESK_HUMAN_SWITCHBOARD_ID, metadata },
     });
   },
 

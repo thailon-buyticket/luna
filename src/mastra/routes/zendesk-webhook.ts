@@ -1,11 +1,15 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { Luna } from '../agents/luna/luna';
+import type { MessageExchange } from '../agents/luna/memory/transcript';
+import { classifyHandoffTag } from '../agents/tags/tags-agent';
 import { resolveBusinessByAppId } from '../business/registry';
 import { logConversation, logConversationError } from '../helpers/logger';
 import { zendeskRequest } from '../services/zendesk';
 import { getHiveOps } from '../hiveops';
 import { conversationMessageSchema, zendeskWebhookSchema } from '../webhooks/zendesk';
+import { buildHandoffTags } from '../webhooks/zendesk/handoff-tags';
 import { bufferMessage } from '../webhooks/zendesk/message-buffer';
+import { buildHandoffTicketFields } from '../webhooks/zendesk/ticket-fields';
 import { transformMessageInTextWithAI } from '../webhooks/zendesk/message-normalizer';
 import type { ZendeskConversationMessagePayload, ZendeskUserSearchResponse } from '../webhooks/zendesk/schema';
 import { normalizeIncomingMessage, zendesk } from '../webhooks/zendesk/zendesk';
@@ -66,14 +70,24 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
       return;
     }
     logConversation(zendeskPayload.conversationId, "empresa mandou mensagem na conversa" )
-    zendesk.connectHuman(appId, zendeskPayload.conversationId).then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
+    zendesk
+      .connectHuman(appId, zendeskPayload.conversationId, {
+        tags: buildHandoffTags('empresa-assumiu', null),
+        ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
+      })
+      .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
     return;
   }
 
   // Contato com alguma tag de handoff no Zendesk: a Luna não cuida desses casos.
   if (await isContactBlocked(zendeskPayload.userPhone, zendeskPayload.externalId)) {
     logConversation(zendeskPayload.conversationId, "usuário bloqueado ou com tags de bloqueio" )
-    zendesk.connectHuman(appId, zendeskPayload.conversationId).then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
+    zendesk
+      .connectHuman(appId, zendeskPayload.conversationId, {
+        tags: buildHandoffTags('contato-bloqueado', null),
+        ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
+      })
+      .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
     return;
   }
 
@@ -96,7 +110,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     logConversation(merged.conversationId, 'Nenhuma nova mensagem, gerar resposta');
     logConversation(merged.conversationId, `buffer fechado, perguntando pra Luna: "${merged.message}"`);
 
-    const { answer, guardrail } = await Luna.ask(merged.message, {
+    const { answer, guardrail, working_memory } = await Luna.ask(merged.message, {
       memory: { thread: merged.conversationId, resource: merged.resourceId },
       requestContext: merged.userPhone ? { user_phone: merged.userPhone } : {},
     });
@@ -111,9 +125,37 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     if (action === 'connect_human' || action === 'reply_and_connect_human') {
       const notice = resolveBusinessByAppId(merged.appId).getHandoffNoticeMessage();
       if (notice) await zendesk.sendMessage(merged.appId, merged.conversationId, notice);
-      await zendesk.connectHuman(merged.appId, merged.conversationId);
+
+      const tabulacaoTag = await resolveTabulacaoTag(merged.conversationId, merged.resourceId, working_memory);
+      await zendesk.connectHuman(merged.appId, merged.conversationId, {
+        tags: buildHandoffTags(action, working_memory, tabulacaoTag),
+        ticketFields: buildHandoffTicketFields(merged.conversationId, working_memory),
+      });
     }
   });
+}
+
+function exchangesToTranscript(history: MessageExchange[]): string {
+  return history.map((exchange) => `user: ${exchange.user_message}\nassistant: ${exchange.bot_answer}`).join('\n');
+}
+
+// Tag de tabulação do atendimento (`agents/tags/`) — se não der pra achar o histórico da conversa
+// ou não souber o `tipo_cliente` ainda, o handoff segue sem essa tag.
+async function resolveTabulacaoTag(
+  conversationId: string,
+  resourceId: string,
+  workingMemory: Awaited<ReturnType<typeof Luna.ask>>['working_memory'],
+) {
+  const customerType = workingMemory?.tipo_cliente;
+  if (!customerType) return null;
+
+  const history = await Luna.getMessageHistory(conversationId, resourceId);
+  if (history.status !== 'ok') return null;
+
+  const transcript = exchangesToTranscript(history.history);
+  if (!transcript) return null;
+
+  return classifyHandoffTag(transcript, customerType);
 }
 
 // Um contato é considerado bloqueado quando existe um usuário no Zendesk com o telefone dele

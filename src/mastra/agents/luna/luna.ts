@@ -20,8 +20,25 @@ type LunaAskResult = {
   working_memory: LunaWorkingMemory | null;
 };
 
+// O resourceId que quem chama calcula (ex.: telefone do Zendesk) é só um palpite pra thread nova.
+// Se a thread já existe, o Mastra trava a resposta caso o resourceId não bata com o dono
+// original (`AGENT_MEMORY_THREAD_RESOURCE_MISMATCH`) — e o telefone resolvido por webhook pode
+// variar entre mensagens da mesma conversa (ex.: campo bruto do provedor às vezes vem com o id
+// da mensagem em vez do telefone). Pra não depender de acertar o resourceId toda vez, sempre
+// usamos o dono já gravado na thread quando ela existir.
+async function resolveMemoryOptions(memory: { thread: string; resource: string }): Promise<{ thread: string; resource: string }> {
+  const lunaMemory = await luna.getMemory();
+  if (!lunaMemory) return memory;
+
+  const existingThread = await lunaMemory.getThreadById({ threadId: memory.thread });
+  if (!existingThread) return memory;
+
+  return { thread: memory.thread, resource: existingThread.resourceId };
+}
+
 async function ask(message: string, options: LunaAskOptions = {}): Promise<LunaAskResult> {
-  const { memory, requestContext } = options;
+  const { requestContext } = options;
+  const memory = options.memory ? await resolveMemoryOptions(options.memory) : undefined;
 
   const result = await luna.generate(message, {
     memory,
