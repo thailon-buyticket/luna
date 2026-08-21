@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "mastra dev",
-    "build": "mastra build",
+    "build": "mastra build --studio",
     "start": "mastra start"
   },
   "keywords": [],

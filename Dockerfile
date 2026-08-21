@@ -16,6 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build /app/.mastra/output ./
+ENV MASTRA_STUDIO_PATH=./studio
 
 EXPOSE 4111
 CMD ["node", "index.mjs"]
