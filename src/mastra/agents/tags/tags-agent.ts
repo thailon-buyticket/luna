@@ -1,14 +1,17 @@
 import { Agent } from '@mastra/core/agent';
 import type { CustomerTypeCategory } from '../luna-customer-type/schema';
 import { buildSystemPrompt, type DateThresholds } from './prompts/system-prompt';
-import { tabulacaoOutputSchema, type TabulacaoTag } from './schema';
+import { buildTabulacaoOutputSchema, tabulacaoOutputSchema, type TabulacaoTag } from './schema';
 
 export const tagsAgent = new Agent({
   id: 'tags',
   name: 'Tags',
-  description: 'Escolhe a tag de tabulação do atendimento a partir do tipo de cliente e da transcript da conversa, pra mandar pro Zendesk no handoff.',
+  description: 'Escolhe todas as tags de tabulação do atendimento com evidência clara na conversa, a partir do tipo de cliente e da transcript, pra mandar pro Zendesk no handoff.',
   // Instrução real é montada por chamada (depende de tipo_cliente e da data de hoje) — ver
-  // `buildSystemPrompt` e `classifyHandoffTag`, que passa `instructions` no `generate()`.
+  // `buildSystemPrompt` e `classifyHandoffTags`, que passa `instructions` no `generate()`.
+  // Placeholder também pro schema — `classifyHandoffTags` sempre sobrescreve com
+  // `buildTabulacaoOutputSchema(customerType)` no `generate()`, senão o enum aceitaria tag de
+  // qualquer tipo de cliente (ver comentário em `schema.ts`).
   instructions: 'Aguardando instruções específicas do atendimento.',
   model: 'openai/gpt-4.1-mini',
   defaultOptions: {
@@ -39,11 +42,14 @@ export function buildDateThresholds(today: Date): DateThresholds {
   };
 }
 
-export async function classifyHandoffTag(
+export async function classifyHandoffTags(
   transcript: string,
   customerType: CustomerTypeCategory,
-): Promise<TabulacaoTag | null> {
+): Promise<TabulacaoTag[]> {
   const instructions = buildSystemPrompt(customerType, buildDateThresholds(new Date()));
-  const { object } = await tagsAgent.generate(transcript, { instructions });
-  return object.tag;
+  const { object } = await tagsAgent.generate(transcript, {
+    instructions,
+    structuredOutput: { schema: buildTabulacaoOutputSchema(customerType) },
+  });
+  return [...new Set(object.tags)];
 }

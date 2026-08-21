@@ -1,4 +1,4 @@
-import { customerTypeCategoryDescriptions } from "../../luna-customer-type/prompts/system-prompt";
+import { renderCustomerTypeCategoryDescriptions } from "../../luna-customer-type/category-descriptions";
 
 export function buildSystemPrompt(hoje: string): string {
   return `Você recebe o conteúdo atual da working memory da Luna (JSON) e o par mais recente (mensagem do cliente, resposta da Luna-bot).
@@ -13,7 +13,7 @@ Sua tarefa é decidir se algo precisa ser adicionado, atualizado ou removido nos
 - motivo_contato: resumo objetivo e curto do motivo pelo qual o cliente entrou em contato (o problema/dúvida central).
 - tipo_cliente: classifique o cliente em uma destas categorias, usando toda a conversa disponível (não só a última troca):
 
-${customerTypeCategoryDescriptions}
+${renderCustomerTypeCategoryDescriptions()}
 
 **id_pedido, nome_evento e evento_hoje são prioridade.** Sempre que possível, descubra e preencha esses três campos —
 procure ativamente por eles tanto na mensagem do cliente quanto na resposta da Luna (ela pode ter citado o

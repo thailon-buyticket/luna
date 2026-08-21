@@ -1,12 +1,15 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { Luna } from '../agents/luna/luna';
 import type { MessageExchange } from '../agents/luna/memory/transcript';
-import { classifyHandoffTag } from '../agents/tags/tags-agent';
+import { classifyHandoffTags } from '../agents/tags/tags-agent';
+import { classifySpecialTags } from '../agents/tags/special-tags-agent';
 import { resolveBusinessByAppId } from '../business/registry';
+import { env } from '../config/env';
 import { logConversation, logConversationError } from '../helpers/logger';
 import { zendeskRequest } from '../services/zendesk';
 import { getHiveOps } from '../hiveops';
 import { conversationMessageSchema, zendeskWebhookSchema } from '../webhooks/zendesk';
+import type { AskLunaInput } from '../webhooks/zendesk/schema';
 import { buildHandoffTags } from '../webhooks/zendesk/handoff-tags';
 import { bufferMessage } from '../webhooks/zendesk/message-buffer';
 import { buildHandoffTicketFields } from '../webhooks/zendesk/ticket-fields';
@@ -14,6 +17,7 @@ import { transformMessageInTextWithAI } from '../webhooks/zendesk/message-normal
 import type { ZendeskConversationMessagePayload, ZendeskUserSearchResponse } from '../webhooks/zendesk/schema';
 import { normalizeIncomingMessage, zendesk } from '../webhooks/zendesk/zendesk';
 import { parseOrBadRequest } from './validate';
+import { PREDEFINED_MESSAGES } from '../predefined-messages';
 
 // Ponto de entrada único pro fluxo "mensagem nova do Zendesk chegou": recebe o webhook, prepara
 // a mensagem (bloqueio, mídia normalizada pra texto), junta com outras mensagens próximas no
@@ -110,11 +114,20 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     logConversation(merged.conversationId, 'Nenhuma nova mensagem, gerar resposta');
     logConversation(merged.conversationId, `buffer fechado, perguntando pra Luna: "${merged.message}"`);
 
-    const { answer, guardrail, working_memory } = await Luna.ask(merged.message, {
-      memory: { thread: merged.conversationId, resource: merged.resourceId },
-      requestContext: merged.userPhone ? { user_phone: merged.userPhone } : {},
-    });
+    const askResult = await askLunaWithFallback(merged);
+    if (!askResult) {
+      // Luna esgotou as tentativas e não conseguiu gerar nenhuma resposta — o cliente não pode
+      // ficar sem resposta, então avisamos e passamos pra um humano em vez de deixar a conversa muda.
+      const fallbackNotice = `${PREDEFINED_MESSAGES.error.technical_issue} ${PREDEFINED_MESSAGES.business.high_volume}`;
+      await zendesk.sendMessage(merged.appId, merged.conversationId, fallbackNotice);
+      await zendesk.connectHuman(merged.appId, merged.conversationId, {
+        tags: buildHandoffTags('luna-erro', null),
+        ticketFields: buildHandoffTicketFields(merged.conversationId, null),
+      });
+      return;
+    }
 
+    const { answer, guardrail, working_memory } = askResult;
     const action = guardrail?.action ?? 'reply';
     logConversation(merged.conversationId, `resposta da Luna (guardrail: ${action}): "${answer}"`);
 
@@ -126,36 +139,73 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
       const notice = resolveBusinessByAppId(merged.appId).getHandoffNoticeMessage();
       if (notice) await zendesk.sendMessage(merged.appId, merged.conversationId, notice);
 
-      const tabulacaoTag = await resolveTabulacaoTag(merged.conversationId, merged.resourceId, working_memory);
+      const tabulacaoTags = await resolveTabulacaoTags(merged.conversationId, merged.resourceId, working_memory);
       await zendesk.connectHuman(merged.appId, merged.conversationId, {
-        tags: buildHandoffTags(action, working_memory, tabulacaoTag),
+        tags: buildHandoffTags(action, working_memory, tabulacaoTags),
         ticketFields: buildHandoffTicketFields(merged.conversationId, working_memory),
       });
     }
   });
 }
 
+const DEFAULT_ASK_MAX_ATTEMPTS = 3;
+
+// Chama a Luna e tenta de novo se der erro (a LLM upstream falha de vez em quando por motivos
+// transitórios — rate limit, timeout, item de conversa expirado). Número de tentativas
+// configurável via `LUNA_ASK_MAX_ATTEMPTS` (padrão 3). Só devolve `null` — sinal pra quem chamou
+// mandar a mensagem de transferência — depois de esgotar todas as tentativas sem conseguir
+// nenhuma resposta.
+async function askLunaWithFallback(merged: AskLunaInput): Promise<Awaited<ReturnType<typeof Luna.ask>> | null> {
+  const memory = { thread: merged.conversationId, resource: merged.resourceId };
+  const requestContext = merged.userPhone ? { user_phone: merged.userPhone } : {};
+  const maxAttempts = env.LUNA_ASK_MAX_ATTEMPTS ?? DEFAULT_ASK_MAX_ATTEMPTS;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await Luna.ask(merged.message, { memory, requestContext });
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts;
+      logConversationError(
+        merged.conversationId,
+        isLastAttempt
+          ? `Luna falhou ao gerar resposta (tentativa ${attempt}/${maxAttempts}), desistindo`
+          : `Luna falhou ao gerar resposta (tentativa ${attempt}/${maxAttempts}), tentando de novo`,
+        error,
+      );
+    }
+  }
+
+  return null;
+}
+
 function exchangesToTranscript(history: MessageExchange[]): string {
   return history.map((exchange) => `user: ${exchange.user_message}\nassistant: ${exchange.bot_answer}`).join('\n');
 }
 
-// Tag de tabulação do atendimento (`agents/tags/`) — se não der pra achar o histórico da conversa
-// ou não souber o `tipo_cliente` ainda, o handoff segue sem essa tag.
-async function resolveTabulacaoTag(
+// Tags de tabulação do atendimento — os 2 agentes de `agents/tags/` (ver AGENTS.md lá): tags de
+// operação (`classifyHandoffTags`, precisa do `tipo_cliente`) e tags especiais/críticas
+// (`classifySpecialTags`, cross-cutting, roda mesmo sem `tipo_cliente` conhecido). Rodam em
+// paralelo; o resultado é deduplicado, então tag que os dois concordarem não repete no Zendesk.
+// Se não der pra achar o histórico da conversa, o handoff segue sem tag nenhuma.
+async function resolveTabulacaoTags(
   conversationId: string,
   resourceId: string,
   workingMemory: Awaited<ReturnType<typeof Luna.ask>>['working_memory'],
-) {
-  const customerType = workingMemory?.tipo_cliente;
-  if (!customerType) return null;
-
+): Promise<string[]> {
   const history = await Luna.getMessageHistory(conversationId, resourceId);
-  if (history.status !== 'ok') return null;
+  if (history.status !== 'ok') return [];
 
   const transcript = exchangesToTranscript(history.history);
-  if (!transcript) return null;
+  if (!transcript) return [];
 
-  return classifyHandoffTag(transcript, customerType);
+  const customerType = workingMemory?.tipo_cliente;
+
+  const [operacaoTags, specialTags] = await Promise.all([
+    customerType ? classifyHandoffTags(transcript, customerType) : Promise.resolve([]),
+    classifySpecialTags(transcript),
+  ]);
+
+  return [...new Set([...operacaoTags, ...specialTags])];
 }
 
 // Um contato é considerado bloqueado quando existe um usuário no Zendesk com o telefone dele

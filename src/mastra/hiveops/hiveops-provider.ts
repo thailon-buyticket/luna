@@ -2,6 +2,7 @@ import type {
   CreateHiveOpsTaskInput,
   HiveOpsIncident,
   HiveOpsKnowledgeBase,
+  HiveOpsPriorityTag,
   HiveOpsSkill,
   HiveOpsSkillDetail,
   UpsertConversationMemoryInput,
@@ -21,5 +22,6 @@ export interface HiveOpsProvider {
   createTask(task: CreateHiveOpsTaskInput): Promise<{ id: string }>;
   upsertConversationMemory(input: UpsertConversationMemoryInput): Promise<void>;
   getHandoffTagTitles(): Promise<string[]>;
+  getPriorityTags(): Promise<HiveOpsPriorityTag[]>;
   findConversationByExternalId(externalId: string): Promise<{ id: string } | null>;
 }

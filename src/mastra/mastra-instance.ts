@@ -18,8 +18,7 @@ import { documentAnalysisAgent } from './agents/luna-document-analysis/luna-docu
 import { lunaGuardrail } from './agents/luna-guardrail/luna-guardrail-agent';
 import { imageAnalysisAgent } from './agents/luna-image-analysis/luna-image-analysis-agent';
 import { lunaWorkingMemoryAgent } from './agents/luna-working-memory/luna-working-memory-agent';
-import { tagsAgent } from './agents/tags/tags-agent';
-import { specialTagsAgent } from './agents/tags/special-tags-agent';
+// import { tagsAgent } from './agents/tags/tags-agent';
 import { lunaHistoryRoute, lunaAsk } from './routes/luna-api';
 import { zendeskWebhookRoute } from './routes/zendesk-webhook';
 
@@ -34,7 +33,7 @@ export const mastra = new Mastra({
     externals: ['@duckdb/node-bindings'],
   },
   logger: new PinoLogger({ name: 'Mastra', level: 'info' }),
-  agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, tagsAgent, specialTagsAgent, imageAnalysisAgent, documentAnalysisAgent },
+  agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
   server: {
     // Toda rota exige "Authorization: Bearer <LUNA_API_KEY>", exceto o webhook do Zendesk
     // (que não manda esse header) — ele opta por fora com `requiresAuth: false` na própria rota.

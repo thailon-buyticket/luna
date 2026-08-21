@@ -13,4 +13,7 @@ export const PREDEFINED_MESSAGES = {
     sticker_unsupported: '[Cliente enviou uma figurinha ou emoji]',
     file_placeholder: 'usuário enviou um arquivo',
   },
+  error: {
+    technical_issue: 'Estou transferindo o seu chamado para um especialista.',
+  },
 } as const;

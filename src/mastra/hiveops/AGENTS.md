@@ -27,3 +27,4 @@ HiveOps é o sistema interno da Buyticket onde ficam as configurações operacio
 ## Notas de desenvolvimento
 
 - Os métodos de `SupabaseHiveOpsProvider` são a migração direta do que antes vivia espalhado em `agents/luna/{skills,incidents,knowledge-bases,tasks}.ts`, `agents/luna/memory/supabase-sync.ts` e `webhooks/zendesk/{blocklist,conversation-state}.ts` — sem mudança de comportamento, só de local.
+- `getHandoffTagTitles()` e `getPriorityTags()` leem a mesma tabela `tags`, só filtrando `type` diferente (`'handoff'` vs `'priority'`) — é a mesma tabela configurável pelo time de suporte pra dois usos: bloquear a Luna numa conversa (`routes/zendesk-webhook.ts`, `isContactBlocked`) e alimentar o agente de tags especiais (`agents/tags/special-tags-agent.ts`), que soma essas tags "priority" (título + descrição) às 4 tags críticas fixas antes de reavaliar a conversa.

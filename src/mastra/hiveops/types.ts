@@ -25,6 +25,11 @@ export interface HiveOpsKnowledgeBase {
   description: string;
 }
 
+export interface HiveOpsPriorityTag {
+  title: string;
+  description: string;
+}
+
 export type HiveOpsTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface CreateHiveOpsTaskInput {

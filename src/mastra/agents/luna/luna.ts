@@ -4,6 +4,17 @@ import type { LunaWorkingMemory } from '../luna-working-memory/schema';
 import { luna } from './luna-agent';
 import { buildExchanges, type MessageExchange } from './memory/transcript';
 import { LunaGuardrail } from '../luna-guardrail/luna-guardrail';
+import { logConversationError } from '../../helpers/logger';
+
+// A OpenAI (Responses API) referencia, nos bastidores, o último item de resposta salvo na
+// thread — se esse item já não existir mais do lado dela (retenção expirada, por exemplo), toda
+// tentativa de continuar a thread falha com esse erro exato, pra sempre, já que a referência
+// quebrada fica presa no histórico salvo. Não tem retentativa que resolva isso.
+const STALE_RESPONSE_ITEM_ERROR = /item with id .+ not found/i;
+
+function isStaleResponseItemError(error: unknown): boolean {
+  return error instanceof Error && STALE_RESPONSE_ITEM_ERROR.test(error.message);
+}
 
 export function parseWorkingMemory(raw: string | null): LunaWorkingMemory | null {
   return raw ? (JSON.parse(raw) as LunaWorkingMemory) : null;
@@ -36,10 +47,11 @@ async function resolveMemoryOptions(memory: { thread: string; resource: string }
   return { thread: memory.thread, resource: existingThread.resourceId };
 }
 
-async function ask(message: string, options: LunaAskOptions = {}): Promise<LunaAskResult> {
-  const { requestContext } = options;
-  const memory = options.memory ? await resolveMemoryOptions(options.memory) : undefined;
-
+async function generateAnswer(
+  message: string,
+  memory: { thread: string; resource: string } | undefined,
+  requestContext: Record<string, unknown> | undefined,
+): Promise<LunaAskResult> {
   const result = await luna.generate(message, {
     memory,
     requestContext: new RequestContext(Object.entries(requestContext ?? {})),
@@ -58,6 +70,25 @@ async function ask(message: string, options: LunaAskOptions = {}): Promise<LunaA
     guardrail,
     working_memory: parseWorkingMemory(workingMemoryRaw),
   };
+}
+
+async function ask(message: string, options: LunaAskOptions = {}): Promise<LunaAskResult> {
+  const { requestContext } = options;
+  const memory = options.memory ? await resolveMemoryOptions(options.memory) : undefined;
+
+  try {
+    return await generateAnswer(message, memory, requestContext);
+  } catch (error) {
+    if (!memory || !isStaleResponseItemError(error)) throw error;
+
+    // A thread ficou travada numa referência de resposta que a OpenAI já não reconhece mais —
+    // não adianta tentar de novo do mesmo jeito. Descarta a thread (perde o histórico salvo
+    // dessa conversa) e responde de novo como se fosse a primeira mensagem dela.
+    logConversationError(memory.thread, 'Thread presa em referência de resposta expirada na OpenAI, reiniciando', error);
+    const lunaMemory = await luna.getMemory();
+    if (lunaMemory) await lunaMemory.deleteThread(memory.thread);
+    return generateAnswer(message, memory, requestContext);
+  }
 }
 
 type LunaHistoryResult =

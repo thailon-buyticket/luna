@@ -4,6 +4,7 @@ import type {
   CreateHiveOpsTaskInput,
   HiveOpsIncident,
   HiveOpsKnowledgeBase,
+  HiveOpsPriorityTag,
   HiveOpsSkill,
   HiveOpsSkillDetail,
   UpsertConversationMemoryInput,
@@ -122,6 +123,17 @@ export class SupabaseHiveOpsProvider implements HiveOpsProvider {
     );
 
     return (data ?? []).map((tag) => tag.title);
+  }
+
+  async getPriorityTags(): Promise<HiveOpsPriorityTag[]> {
+    const tenantId = requireTenantId('Tags especiais/prioritárias');
+
+    const data = await unwrapOrThrow<{ title: string; description: string | null }[]>(
+      getSupabaseClient().from('tags').select('title, description').eq('active', true).eq('type', 'priority').eq('tenant_id', tenantId),
+      'load priority tags',
+    );
+
+    return (data ?? []).map((tag) => ({ title: tag.title, description: tag.description ?? '' }));
   }
 
   async findConversationByExternalId(externalId: string): Promise<{ id: string } | null> {

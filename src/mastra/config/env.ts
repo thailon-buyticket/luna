@@ -36,6 +36,9 @@ const envSchema = z.object({
   ZENDESK_CONVERSATIONS_API_KEY: optionalString(),
 
   LUNA_MESSAGE_BUFFER_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  // Quantas vezes tentar gerar uma resposta da Luna antes de desistir e só transferir pra um
+  // humano (ver `askLunaWithFallback` em `routes/zendesk-webhook.ts`).
+  LUNA_ASK_MAX_ATTEMPTS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   LUNA_BUSINESS_HOURS_START_HOUR: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(23).optional()),
   LUNA_BUSINESS_HOURS_END_HOUR: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(23).optional()),
 });
