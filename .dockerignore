@@ -1,0 +1,13 @@
+node_modules
+.mastra
+dist
+.git
+.env
+.env.development
+.env.local
+*.db
+*.db-*
+*.duckdb
+*.duckdb.wal
+src/mastra/public/
+.claude
