@@ -34,6 +34,11 @@ const envSchema = z.object({
   ZENDESK_AI_AGENT_SWITCHBOARD_ID: optionalString(),
   ZENDESK_CONVERSATIONS_API_KEY_ID: optionalString(),
   ZENDESK_CONVERSATIONS_API_KEY: optionalString(),
+  // Validam quem pode chamar POST /webhooks/zendesk: o id do webhook (vem no corpo,
+  // `webhook.id`) tem que bater com ZENDESK_WEBHOOK_ID, e o header `x-api-key` com
+  // ZENDESK_WEBHOOK_SECRET. Ver `routes/zendesk-webhook.ts`.
+  ZENDESK_WEBHOOK_ID: optionalString(),
+  ZENDESK_WEBHOOK_SECRET: optionalString(),
 
   LUNA_MESSAGE_BUFFER_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   // Quantas vezes tentar gerar uma resposta da Luna antes de desistir e só transferir pra um

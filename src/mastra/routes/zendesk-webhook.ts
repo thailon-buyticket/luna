@@ -5,7 +5,8 @@ import { classifyHandoffTags } from '../agents/tags/tags-agent';
 import { classifySpecialTags } from '../agents/tags/special-tags-agent';
 import { resolveBusinessByAppId } from '../business/registry';
 import { env } from '../config/env';
-import { logConversation, logConversationError } from '../helpers/logger';
+import { requireEnv } from '../config/require-env';
+import { logConversation, logConversationError, logWarning } from '../helpers/logger';
 import { zendeskRequest } from '../services/zendesk';
 import { getHiveOps } from '../hiveops';
 import { conversationMessageSchema, zendeskWebhookSchema } from '../webhooks/zendesk';
@@ -37,12 +38,28 @@ export const zendeskWebhookRoute = registerApiRoute('/webhooks/zendesk', {
     tags: ['Zendesk'],
   },
   handler: async (c) => {
+    const { ZENDESK_WEBHOOK_ID, ZENDESK_WEBHOOK_SECRET } = requireEnv(
+      { ZENDESK_WEBHOOK_ID: env.ZENDESK_WEBHOOK_ID, ZENDESK_WEBHOOK_SECRET: env.ZENDESK_WEBHOOK_SECRET },
+      'Zendesk webhook',
+    );
+
+    if (c.req.header('x-api-key') !== ZENDESK_WEBHOOK_SECRET) {
+      return c.json({ error: 'unauthorized' }, 401);
+    }
+
     const parsed = parseOrBadRequest(zendeskWebhookSchema, await c.req.json(), c);
     if (parsed instanceof Response) return parsed;
 
+    if (parsed.webhook.id !== ZENDESK_WEBHOOK_ID) {
+      return c.json({ error: 'unauthorized' }, 401);
+    }
+
     for (const event of parsed.events) {
       const message = conversationMessageSchema.safeParse(event.payload);
-      if (!message.success) continue;
+      if (!message.success) {
+        logWarning(`evento zendesk inválido (app ${parsed.app.id})`, message.error.flatten());
+        continue;
+      }
 
       void onNewZendeskMessageReceived(parsed.app.id, message.data).catch((error) =>
         logConversationError(message.data.conversation.id, 'falha ao processar mensagem recebida', error),
@@ -76,22 +93,32 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     logConversation(zendeskPayload.conversationId, "empresa mandou mensagem na conversa" )
     zendesk
       .connectHuman(appId, zendeskPayload.conversationId, {
-        tags: buildHandoffTags('empresa-assumiu', null),
+        tags: buildHandoffTags('luna-interrompida', null),
         ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
       })
       .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
     return;
   }
 
-  // Contato com alguma tag de handoff no Zendesk: a Luna não cuida desses casos.
-  if (await isContactBlocked(zendeskPayload.userPhone, zendeskPayload.externalId)) {
-    logConversation(zendeskPayload.conversationId, "usuário bloqueado ou com tags de bloqueio" )
+  // Contato com alguma tag de handoff no Zendesk, ou mensagem com palavra-chave de bypass:
+  // a Luna não cuida desses casos.
+  const bypassKeyword = isMessageKeywordToBypassAgent(zendeskPayload.additionalText);
+  if ((await isContactBlocked(zendeskPayload.conversationId, zendeskPayload.userPhone, zendeskPayload.externalId)) || bypassKeyword) {
+    logConversation(
+      zendeskPayload.conversationId,
+      bypassKeyword ? 'mensagem com palavra-chave de bypass' : 'usuário bloqueado ou com tags de bloqueio',
+    )
     zendesk
       .connectHuman(appId, zendeskPayload.conversationId, {
-        tags: buildHandoffTags('contato-bloqueado', null),
+        tags: buildHandoffTags('luna-interrompida', null),
         ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
       })
       .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
+    return;
+  }
+
+  if (zendeskPayload.mediaType === 'sticker') {
+    logConversation(zendeskPayload.conversationId, 'sticker recebido, ignorando');
     return;
   }
 
@@ -193,38 +220,66 @@ async function resolveTabulacaoTags(
   workingMemory: Awaited<ReturnType<typeof Luna.ask>>['working_memory'],
 ): Promise<string[]> {
   const history = await Luna.getMessageHistory(conversationId, resourceId);
-  if (history.status !== 'ok') return [];
+  if (history.status !== 'ok') {
+    logConversation(conversationId, 'histórico da conversa indisponível, handoff sem tags de tabulação');
+    return [];
+  }
 
   const transcript = exchangesToTranscript(history.history);
-  if (!transcript) return [];
+  if (!transcript) {
+    logConversation(conversationId, 'histórico vazio, handoff sem tags de tabulação');
+    return [];
+  }
 
   const customerType = workingMemory?.tipo_cliente;
+  logConversation(conversationId, `resolvendo tags de tabulação (tipo_cliente: ${customerType ?? 'desconhecido'})`);
 
   const [operacaoTags, specialTags] = await Promise.all([
     customerType ? classifyHandoffTags(transcript, customerType) : Promise.resolve([]),
     classifySpecialTags(transcript),
   ]);
 
-  return [...new Set([...operacaoTags, ...specialTags])];
+  const tags = [...new Set([...operacaoTags, ...specialTags])];
+  logConversation(conversationId, `tags de tabulação resolvidas: ${tags.length ? tags.join(', ') : 'nenhuma'}`);
+  return tags;
 }
 
 // Um contato é considerado bloqueado quando existe um usuário no Zendesk com o telefone dele
 // que também carrega alguma tag de handoff (ex.: "golpe", "vip-humano" etc, configuráveis via
 // HiveOps). A busca cobre telefone com e sem "+" e o `externalId` do webhook como variantes,
-// já que o mesmo contato pode aparecer cadastrado em formatos diferentes no Zendesk.
-async function isContactBlocked(phone: string | null, externalId: string | undefined): Promise<boolean> {
-  const handoffTags = await getHiveOps().getHandoffTagTitles();
+// já que o mesmo contato pode aparecer cadastrado em formatos diferentes no Zendesk. Se a
+// checagem falhar (Zendesk/HiveOps fora do ar), segue o fluxo assumindo que o contato não está
+// bloqueado — a Luna não pode travar por uma falha nessa verificação.
+async function isContactBlocked(conversationId: string, phone: string | null, externalId: string | undefined): Promise<boolean> {
+  try {
+    const handoffTags = await getHiveOps().getHandoffTagTitles();
 
-  const query = [
-    'type:user',
-    `phone:${phone ?? ''}`,
-    `phone:+${phone ?? ''}`,
-    `phone:${externalId ?? ''}`,
-    `phone:+${externalId ?? ''}`,
-    ...handoffTags.map((title) => `tags:${title}`),
-  ].join('\n');
+    const query = [
+      'type:user',
+      `phone:${phone ?? ''}`,
+      `phone:+${phone ?? ''}`,
+      `phone:${externalId ?? ''}`,
+      `phone:+${externalId ?? ''}`,
+      ...handoffTags.map((title) => `tags:${title}`),
+    ].join('\n');
 
-  const response = await zendeskRequest<ZendeskUserSearchResponse>(`users/search.json?query=${encodeURIComponent(query)}`);
+    const response = await zendeskRequest<ZendeskUserSearchResponse>(`users/search.json?query=${encodeURIComponent(query)}`);
 
-  return response.users.some((user) => Boolean(user.phone));
+    return response.users.some((user) => Boolean(user.phone));
+  } catch (error) {
+    logConversationError(
+      conversationId,
+      'erro ao buscar no Zendesk se o contato está bloqueado — deixando passar e assumindo que não está bloqueado',
+      error,
+    );
+    return false;
+  }
+}
+
+// Palavras-chave que, quando a mensagem do cliente é exatamente igual (sem variação), pulam a
+// Luna e vão direto pro humano — igual a um contato bloqueado. Só "Vamo!" por enquanto.
+const BYPASS_AGENT_KEYWORDS = ['Vamos!'];
+
+function isMessageKeywordToBypassAgent(message: string): boolean {
+  return BYPASS_AGENT_KEYWORDS.includes(message);
 }

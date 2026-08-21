@@ -16,3 +16,7 @@ export function logConversation(conversationId: string, message: string): void {
 export function logConversationError(conversationId: string, message: string, error: unknown): void {
   getLogger().error(`[conversa ${conversationId}] ${message}`, { error });
 }
+
+export function logWarning(message: string, details?: unknown): void {
+  getLogger().warn(message, { details });
+}

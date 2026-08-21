@@ -49,6 +49,7 @@ const webhookEventSchema = z.object({
 
 export const zendeskWebhookSchema = z.object({
   app: z.object({ id: z.string() }),
+  webhook: z.object({ id: z.string() }),
   events: z.array(webhookEventSchema),
 });
 

@@ -8,8 +8,7 @@ export const PREDEFINED_MESSAGES = {
       'Como sua solicitação precisa do suporte do nosso time, peço que aguarde o início do horário de atendimento. Estaremos de volta a partir das 10h para dar continuidade ao seu caso, combinado?',
   },
   media: {
-    video_unsupported:
-      '[Cliente enviou um vídeo. Diga que ainda não conseguimos abrir vídeos e peça uma descrição em texto ou uma foto/print do problema.]',
+    video_unsupported: '[Usuário enviou um vídeo, confirme o recebimento]',
     sticker_unsupported: '[Cliente enviou uma figurinha ou emoji]',
     file_placeholder: 'usuário enviou um arquivo',
   },
