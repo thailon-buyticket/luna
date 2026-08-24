@@ -2,7 +2,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import type { GuardrailOutput } from '../luna-guardrail/schema';
 import type { LunaWorkingMemory } from '../luna-working-memory/schema';
 import { luna } from './luna-agent';
-import { buildExchanges, type MessageExchange } from './memory/transcript';
+import { buildExchanges, filterMessagesBySameDay, limitMessagesByRole, type MessageExchange } from './memory/transcript';
 import { LunaGuardrail } from '../luna-guardrail/luna-guardrail';
 import { logConversationError } from '../../helpers/logger';
 
@@ -96,8 +96,19 @@ type LunaHistoryResult =
   | { status: 'not_found' }
   | { status: 'resource_mismatch'; actualResource: string };
 
+// Filtros opcionais de leitura — nenhum tem default aqui (default de UI/API é decisão de quem
+// chama, ex.: `routes/luna-api.ts`); sem filtros, devolve a conversa inteira, igual antes.
+export type LunaHistoryFilters = {
+  limit?: number;
+  sameDayOnly?: boolean;
+  limitPerRole?: number;
+};
+
 // Leitura pura do histórico + working memory de uma thread, sem gerar nenhuma resposta nova.
-async function getMessageHistory(thread: string, resource: string): Promise<LunaHistoryResult> {
+// `resource` é opcional: quando informado, valida que a thread pertence a ele (guarda contra
+// buscar o histórico errado); quando omitido, busca só pelo `thread` e usa o resource já
+// gravado nela (`existingThread.resourceId`).
+async function getMessageHistory(thread: string, resource?: string, filters: LunaHistoryFilters = {}): Promise<LunaHistoryResult> {
   const lunaMemory = await luna.getMemory();
   if (!lunaMemory) {
     throw new Error('memory_not_configured');
@@ -107,18 +118,25 @@ async function getMessageHistory(thread: string, resource: string): Promise<Luna
   if (!existingThread) {
     return { status: 'not_found' };
   }
-  if (existingThread.resourceId !== resource) {
+  if (resource && existingThread.resourceId !== resource) {
     return { status: 'resource_mismatch', actualResource: existingThread.resourceId };
   }
 
+  const resourceId = existingThread.resourceId;
   const [{ messages }, workingMemoryRaw] = await Promise.all([
-    lunaMemory.recall({ threadId: thread, resourceId: resource }),
-    lunaMemory.getWorkingMemory({ threadId: thread, resourceId: resource }),
+    lunaMemory.recall({ threadId: thread, resourceId }),
+    lunaMemory.getWorkingMemory({ threadId: thread, resourceId }),
   ]);
+
+  // Ordem importa: primeiro reduz o período (dia), depois o volume por papel, e só então
+  // pareia em exchanges e corta pro `limit` final — assim cada filtro estreita o anterior.
+  let scopedMessages = messages;
+  if (filters.sameDayOnly) scopedMessages = filterMessagesBySameDay(scopedMessages, new Date());
+  if (filters.limitPerRole) scopedMessages = limitMessagesByRole(scopedMessages, filters.limitPerRole);
 
   return {
     status: 'ok',
-    history: buildExchanges(messages),
+    history: buildExchanges(scopedMessages, filters.limit),
     working_memory: parseWorkingMemory(workingMemoryRaw),
   };
 }

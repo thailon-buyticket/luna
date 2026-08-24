@@ -45,3 +45,26 @@ export function buildExchanges(messages: MastraDBMessage[], limit?: number): Mes
 
   return limit ? exchanges.slice(-limit) : exchanges;
 }
+
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+
+function localDateKey(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+// Compara pelo dia civil no fuso de Brasília, não em UTC — uma mensagem mandada às 23h50 ou às
+// 00h10 (horário de Brasília) precisa cair no dia local certo, mesmo quando isso não bate com o
+// corte de dia em UTC (senão mensagens perto da meia-noite local somem do filtro "hoje").
+export function filterMessagesBySameDay(messages: MastraDBMessage[], reference: Date, timeZone = DEFAULT_TIMEZONE): MastraDBMessage[] {
+  const referenceKey = localDateKey(reference, timeZone);
+  return messages.filter((message) => localDateKey(message.createdAt, timeZone) === referenceKey);
+}
+
+// Últimas `limitPerRole` mensagens de cada papel (user = cliente, assistant = empresa/Luna),
+// preservando a ordem cronológica original das mensagens mantidas — usado antes de
+// `buildExchanges`, já que o pareamento 1:1 em exchanges não deixa limitar cada lado sozinho.
+export function limitMessagesByRole(messages: MastraDBMessage[], limitPerRole: number): MastraDBMessage[] {
+  const lastByRole = (role: MastraDBMessage['role']) => messages.filter((message) => message.role === role).slice(-limitPerRole);
+  const keptIds = new Set([...lastByRole('user'), ...lastByRole('assistant')].map((message) => message.id));
+  return messages.filter((message) => keptIds.has(message.id));
+}
