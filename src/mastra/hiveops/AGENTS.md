@@ -21,10 +21,10 @@ HiveOps é o sistema interno da Buyticket onde ficam as configurações operacio
 
 ## Não incluído (ainda)
 
-- `getAgentConfig` — cotado como próximo método (ler o prompt/config da Luna de uma tabela `agents` no Supabase, usando `LUNA_AGENT_ID`), mas essa tabela ainda não existe. Adicionar só quando o schema real existir.
 - `findLunaCustomerByPhone` (`agents/luna/customer-lookup.ts`) continua fora do HiveOps — busca no Zendesk, não no Supabase.
 
 ## Notas de desenvolvimento
 
 - Os métodos de `SupabaseHiveOpsProvider` são a migração direta do que antes vivia espalhado em `agents/luna/{skills,incidents,knowledge-bases,tasks}.ts`, `agents/luna/memory/supabase-sync.ts` e `webhooks/zendesk/{blocklist,conversation-state}.ts` — sem mudança de comportamento, só de local.
 - `getHandoffTagTitles()` e `getPriorityTags()` leem a mesma tabela `tags`, só filtrando `type` diferente (`'handoff'` vs `'priority'`) — é a mesma tabela configurável pelo time de suporte pra dois usos: bloquear a Luna numa conversa (`routes/zendesk-webhook.ts`, `isContactBlocked`) e alimentar o agente de tags especiais (`agents/tags/special-tags-agent.ts`), que soma essas tags "priority" (título + descrição) às 4 tags críticas fixas antes de reavaliar a conversa.
+- `getAgentConfig()` lê a tabela `agents` (colunas `system_prompt` e `guardrail_prompt`), filtrando pela linha via `LUNA_AGENT_ID` (`requireAgentId`, análogo ao `requireTenantId`). É chamado a cada geração da Luna e a cada classificação do guardrail (`instructions` como função em `luna-agent.ts`/`luna-guardrail-agent.ts`), não só uma vez no boot — trocar o texto no Supabase reflete na próxima mensagem, sem deploy. Os dois agentes usam `helpers/with-timeout-fallback.ts`: se a busca falhar ou passar de 1min, caem no prompt local (`agents/luna/prompts/system-prompt.ts` / `agents/luna-guardrail/prompts/system-prompt.ts`) como default — esses arquivos continuam existindo como cópia de referência/seed, não são mais a fonte lida em runtime no caminho feliz.

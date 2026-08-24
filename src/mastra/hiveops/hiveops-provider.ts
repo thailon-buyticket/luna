@@ -1,5 +1,6 @@
 import type {
   CreateHiveOpsTaskInput,
+  HiveOpsAgentConfig,
   HiveOpsIncident,
   HiveOpsKnowledgeBase,
   HiveOpsPriorityTag,
@@ -24,4 +25,5 @@ export interface HiveOpsProvider {
   getHandoffTagTitles(): Promise<string[]>;
   getPriorityTags(): Promise<HiveOpsPriorityTag[]>;
   findConversationByExternalId(externalId: string): Promise<{ id: string } | null>;
+  getAgentConfig(): Promise<HiveOpsAgentConfig>;
 }

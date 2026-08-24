@@ -1,7 +1,8 @@
-import { getSupabaseClient, requireTenantId, unwrapOrThrow } from '../services/supabase';
+import { getSupabaseClient, requireAgentId, requireTenantId, unwrapOrThrow } from '../services/supabase';
 import type { HiveOpsProvider } from './hiveops-provider';
 import type {
   CreateHiveOpsTaskInput,
+  HiveOpsAgentConfig,
   HiveOpsIncident,
   HiveOpsKnowledgeBase,
   HiveOpsPriorityTag,
@@ -143,5 +144,20 @@ export class SupabaseHiveOpsProvider implements HiveOpsProvider {
       getSupabaseClient().from('conversations').select('id').eq('tenant_id', tenantId).eq('external_id', externalId).maybeSingle(),
       'load conversation state',
     );
+  }
+
+  async getAgentConfig(): Promise<HiveOpsAgentConfig> {
+    const agentId = requireAgentId('Luna agent config');
+
+    const data = await unwrapOrThrow<{ system_prompt: string; guardrail_prompt: string }>(
+      getSupabaseClient().from('agents').select('system_prompt, guardrail_prompt').eq('id', agentId).single(),
+      'load Luna agent config from Supabase',
+    );
+
+    if (!data) {
+      throw new Error(`Failed to load Luna agent config: no row in "agents" for id ${agentId}`);
+    }
+
+    return { systemPrompt: data.system_prompt, guardrailPrompt: data.guardrail_prompt };
   }
 }

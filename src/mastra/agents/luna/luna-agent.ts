@@ -1,4 +1,6 @@
 import { Agent } from '@mastra/core/agent';
+import { getHiveOps } from '../../hiveops';
+import { withTimeoutFallback } from '../../helpers/with-timeout-fallback';
 import { guardrailActionSchema } from '../luna-guardrail/schema';
 import { LunaWorkingMemoryProcessor } from './processors/output-working-memory-processor';
 import { LunaGuardrailProcessor } from './processors/output-guardrail-processor';
@@ -27,7 +29,15 @@ export const luna = new Agent({
       'Gostaria de cadastrar um evento.',
     ],
   },
-  instructions: buildSystemPrompt(),
+  // Lido do Supabase (tabela `agents`, coluna `system_prompt`, linha `LUNA_AGENT_ID`) a cada
+  // geração — editar o prompt lá reflete na próxima mensagem, sem deploy. Se a busca falhar ou
+  // passar de 1min, cai no prompt local (`prompts/system-prompt.ts`) como default.
+  instructions: async () =>
+    withTimeoutFallback(
+      async () => (await getHiveOps().getAgentConfig()).systemPrompt,
+      () => buildSystemPrompt(),
+      60_000,
+    ),
   model: 'openai/gpt-4.1',
   defaultOptions: {
     maxSteps: 10,

@@ -1,3 +1,6 @@
+// Cópia de referência/seed — não é a fonte lida em runtime. A Luna busca `instructions` no
+// Supabase (tabela `agents.system_prompt`, linha `LUNA_AGENT_ID`) via `getHiveOps().getAgentConfig()`,
+// ver `luna-agent.ts`. Editar aqui não muda o comportamento em produção sem sincronizar pro Supabase.
 export function buildSystemPrompt(): string {
   return `## 1. IDENTIDADE
 Você é a Luna, atendente virtual oficial da Buyticket.

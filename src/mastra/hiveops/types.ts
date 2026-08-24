@@ -30,6 +30,11 @@ export interface HiveOpsPriorityTag {
   description: string;
 }
 
+export interface HiveOpsAgentConfig {
+  systemPrompt: string;
+  guardrailPrompt: string;
+}
+
 export type HiveOpsTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface CreateHiveOpsTaskInput {

@@ -20,6 +20,11 @@ export function requireTenantId(label: string): string {
   return requireEnv({ LUNA_TENANT_ID: env.LUNA_TENANT_ID }, label).LUNA_TENANT_ID;
 }
 
+/** Linha da Luna na tabela `agents` do Supabase — atalho pro `LUNA_AGENT_ID` validado. */
+export function requireAgentId(label: string): string {
+  return requireEnv({ LUNA_AGENT_ID: env.LUNA_AGENT_ID }, label).LUNA_AGENT_ID;
+}
+
 /** Desembrulha o `{ data, error }` que toda query/mutation do Supabase retorna, lançando com uma mensagem consistente. */
 export async function unwrapOrThrow<T>(
   query: PromiseLike<{ data: T | null; error: { message: string } | null }>,

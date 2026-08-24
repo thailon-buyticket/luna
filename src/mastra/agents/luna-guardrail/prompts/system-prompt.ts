@@ -1,9 +1,9 @@
 import { formatNow } from '../../../config/time';
 
-export function buildSystemPrompt(now: Date): string {
-  const formattedNow = formatNow(now);
-
-  return `Guardrail — Classificação de Output da Luna
+// Parte estática do prompt (sem a data) — é o texto que fica em `agents.guardrail_prompt` no
+// Supabase. `withDateFooter` sempre acrescenta a data atual por fora, tanto pra este default
+// local (`buildSystemPrompt`) quanto pro texto que vier do Supabase (ver `luna-guardrail-agent.ts`).
+export const GUARDRAIL_PROMPT_TEMPLATE = `Guardrail — Classificação de Output da Luna
 
 Dado um array com as últimas trocas de mensagens entre o cliente e o bot (cada item é \`{ user_message, bot_answer }\`; o último item é sempre a troca mais recente, que é o que você deve avaliar), responda somente com:
 
@@ -152,10 +152,17 @@ Exemplos:
 - Cliente responde o telefone, bot diz "Vou encaminhar para atualização" → **reply_and_connect_human**
 
 ATENÇÃO:
-Há um grande número de conversas de cancelamento de pedidos e cadastro de novos eventos que não estão sendo encaminhados para o humano (reply_and_connect). Tenha super atenção para encaminhar esses pedidos assim que possível
+Há um grande número de conversas de cancelamento de pedidos e cadastro de novos eventos que não estão sendo encaminhados para o humano (reply_and_connect). Tenha super atenção para encaminhar esses pedidos assim que possível`;
+
+export function withDateFooter(template: string, now: Date): string {
+  return `${template}
 
 ---
 
-*Variável de contexto: Agora é ${formattedNow}*
+*Variável de contexto: Agora é ${formatNow(now)}*
 `;
+}
+
+export function buildSystemPrompt(now: Date): string {
+  return withDateFooter(GUARDRAIL_PROMPT_TEMPLATE, now);
 }
