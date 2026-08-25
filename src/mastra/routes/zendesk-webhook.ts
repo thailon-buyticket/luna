@@ -1,8 +1,6 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { Luna } from '../agents/luna/luna';
-import type { MessageExchange } from '../agents/luna/memory/transcript';
-import { classifyHandoffTags } from '../agents/tags/tags-agent';
-import { classifySpecialTags } from '../agents/tags/special-tags-agent';
+import { createTicketTagsWithAI } from '../agents/tags/create-ticket-tags-with-ai';
 import { resolveBusinessByAppId } from '../business/registry';
 import { env } from '../config/env';
 import { requireEnv } from '../config/require-env';
@@ -168,7 +166,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
       const notice = resolveBusinessByAppId(merged.appId).getHandoffNoticeMessage();
       if (notice) await zendesk.sendMessage(merged.appId, merged.conversationId, notice);
 
-      const tabulacaoTags = await resolveTabulacaoTags(merged.conversationId, merged.resourceId, working_memory);
+      const tabulacaoTags = await createTicketTagsWithAI(merged.conversationId, merged.resourceId, working_memory);
       await zendesk.connectHuman(merged.appId, merged.conversationId, {
         tags: buildHandoffTags(action, working_memory, tabulacaoTags),
         ticketFields: buildHandoffTicketFields(merged.conversationId, working_memory),
@@ -205,45 +203,6 @@ async function askLunaWithFallback(merged: AskLunaInput): Promise<Awaited<Return
   }
 
   return null;
-}
-
-function exchangesToTranscript(history: MessageExchange[]): string {
-  return history.map((exchange) => `user: ${exchange.user_message}\nassistant: ${exchange.bot_answer}`).join('\n');
-}
-
-// Tags de tabulação do atendimento — os 2 agentes de `agents/tags/` (ver AGENTS.md lá): tags de
-// operação (`classifyHandoffTags`, precisa do `tipo_cliente`) e tags especiais/críticas
-// (`classifySpecialTags`, cross-cutting, roda mesmo sem `tipo_cliente` conhecido). Rodam em
-// paralelo; o resultado é deduplicado, então tag que os dois concordarem não repete no Zendesk.
-// Se não der pra achar o histórico da conversa, o handoff segue sem tag nenhuma.
-async function resolveTabulacaoTags(
-  conversationId: string,
-  resourceId: string,
-  workingMemory: Awaited<ReturnType<typeof Luna.ask>>['working_memory'],
-): Promise<string[]> {
-  const history = await Luna.getMessageHistory(conversationId, resourceId);
-  if (history.status !== 'ok') {
-    logConversation(conversationId, 'histórico da conversa indisponível, handoff sem tags de tabulação');
-    return [];
-  }
-
-  const transcript = exchangesToTranscript(history.history);
-  if (!transcript) {
-    logConversation(conversationId, 'histórico vazio, handoff sem tags de tabulação');
-    return [];
-  }
-
-  const customerType = workingMemory?.tipo_cliente;
-  logConversation(conversationId, `resolvendo tags de tabulação (tipo_cliente: ${customerType ?? 'desconhecido'})`);
-
-  const [operacaoTags, specialTags] = await Promise.all([
-    customerType ? classifyHandoffTags(transcript, customerType) : Promise.resolve([]),
-    classifySpecialTags(transcript),
-  ]);
-
-  const tags = [...new Set([...operacaoTags, ...specialTags])];
-  logConversation(conversationId, `tags de tabulação resolvidas: ${tags.length ? tags.join(', ') : 'nenhuma'}`);
-  return tags;
 }
 
 // Um contato é considerado bloqueado quando existe um usuário no Zendesk com o telefone dele

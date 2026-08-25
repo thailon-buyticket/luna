@@ -4,10 +4,10 @@ import type { LunaWorkingMemory } from '../../agents/luna-working-memory/schema'
 // `passControl` (ver `zendesk.ts`). "luna" e "luna-transferencia" identificam a origem do handoff;
 // as demais dependem do que a Luna já sabe sobre a conversa (working memory), do motivo da
 // transferência e das tags escolhidas pelos 2 agentes de `agents/tags/` (tags de operação +
-// especiais/críticas — ver `resolveTabulacaoTags` em `routes/zendesk-webhook.ts`). `string[]` e
-// não `TabulacaoTag[]` porque as tags especiais incluem títulos configuráveis no HiveOps, fora do
-// enum fixo de tabulação. Os ticket fields (id_pedido, motivo_contato etc, que precisam do ID do
-// campo no Zendesk) ainda serão adicionados aqui.
+// especiais/críticas — ver `createTicketTagsWithAI` em `agents/tags/create-ticket-tags-with-ai.ts`).
+// `string[]` e não `TabulacaoTag[]` porque as tags especiais incluem títulos configuráveis no
+// HiveOps, fora do enum fixo de tabulação. Os ticket fields (id_pedido, motivo_contato etc, que
+// precisam do ID do campo no Zendesk) ainda serão adicionados aqui.
 const BASE_HANDOFF_TAGS = ['luna', 'luna-transferencia'];
 
 export function buildHandoffTags(
