@@ -118,7 +118,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
   }
 
   if (zendeskPayload.mediaType === 'sticker') {
-    logConversation(zendeskPayload.conversationId, 'sticker recebido, ignorando');
+    logConversation(zendeskPayload.conversationId, 'sticker recebido e ignorado');
     return;
   }
 
@@ -145,18 +145,20 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     if (!askResult) {
       // Luna esgotou as tentativas e não conseguiu gerar nenhuma resposta — o cliente não pode
       // ficar sem resposta, então avisamos e passamos pra um humano em vez de deixar a conversa muda.
-      const fallbackNotice = `${PREDEFINED_MESSAGES.error.technical_issue} ${PREDEFINED_MESSAGES.business.high_volume}`;
-      await zendesk.sendMessage(merged.appId, merged.conversationId, fallbackNotice);
-      await zendesk.connectHuman(merged.appId, merged.conversationId, {
-        tags: buildHandoffTags('luna-erro', null),
-        ticketFields: buildHandoffTicketFields(merged.conversationId, null),
-      });
+      
+      //O codigo esta comentado pq temos um outro fluxo de retry que roda no n7n. Pega as pessoas sem respostas e reenvia pra Luan
+      // const fallbackNotice = `${PREDEFINED_MESSAGES.error.technical_issue} ${PREDEFINED_MESSAGES.business.high_volume}`;
+      // await zendesk.sendMessage(merged.appId, merged.conversationId, fallbackNotice);
+      // await zendesk.connectHuman(merged.appId, merged.conversationId, {
+      //   tags: buildHandoffTags('luna-erro', null),
+      //   ticketFields: buildHandoffTicketFields(merged.conversationId, null),
+      // });
       return;
     }
 
     const { answer, guardrail, working_memory } = askResult;
     const action = guardrail?.action ?? 'reply';
-    logConversation(merged.conversationId, `resposta da Luna (guardrail: ${action}): "${answer}"`);
+    logConversation(merged.conversationId, `Luna decidiu responder: "${answer}"`);
 
     if ((action === 'reply' || action === 'reply_and_connect_human') && answer) {
       await zendesk.sendMessage(merged.appId, merged.conversationId, answer);
@@ -277,8 +279,8 @@ async function isContactBlocked(conversationId: string, phone: string | null, ex
 }
 
 // Palavras-chave que, quando a mensagem do cliente é exatamente igual (sem variação), pulam a
-// Luna e vão direto pro humano — igual a um contato bloqueado. Só "Vamo!" por enquanto.
-const BYPASS_AGENT_KEYWORDS = ['Vamos!'];
+// Luna e vão direto pro humano — Isso para as mensagens ativas e o usuário clica num botão ou mensagens ativas do time de social
+const BYPASS_AGENT_KEYWORDS = ['Vamos!', 'Preciso de suporte!', 'Vamos falar!', 'Pode trocar o ingresso!', 'Prefiro o cancelamento!', 'Sim, tenho o ingresso!', 'Não tenho mais!'];
 
 function isMessageKeywordToBypassAgent(message: string): boolean {
   return BYPASS_AGENT_KEYWORDS.includes(message);
