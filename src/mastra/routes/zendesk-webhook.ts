@@ -80,10 +80,6 @@ const conversationsAwaitingBuffer = new Set<string>();
 // pra Luna.
 async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConversationMessagePayload): Promise<void> {
   const zendeskPayload = normalizeIncomingMessage(appId, payload);
-  logConversation(
-    zendeskPayload.conversationId,
-    `mensagem recebida de "${zendeskPayload.userName ?? 'desconhecido'}" (${zendeskPayload.mediaType}, origem: ${zendeskPayload.isFromCompany ? 'empresa' : 'cliente'})`,
-  );
 
   if (zendeskPayload.isFromCompany) {
     if (zendeskPayload.userName?.includes(Luna.id)) {
@@ -100,6 +96,10 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     return;
   }
 
+  logConversation(
+    zendeskPayload.conversationId,
+    `mensagem recebida de "${zendeskPayload.userName ?? 'desconhecido'}" (${zendeskPayload.mediaType}, origem: ${zendeskPayload.isFromCompany ? 'empresa' : 'cliente'})`,
+  );
   // Contato com alguma tag de handoff no Zendesk, ou mensagem com palavra-chave de bypass:
   // a Luna não cuida desses casos.
   const bypassKeyword = isMessageKeywordToBypassAgent(zendeskPayload.additionalText);
