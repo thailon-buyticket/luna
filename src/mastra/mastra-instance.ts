@@ -4,6 +4,7 @@ import { PostgresStore } from '@mastra/pg';
 import { DuckDBStore } from '@mastra/duckdb';
 import { PinoLogger } from '@mastra/loggers';
 import { MastraCompositeStore } from '@mastra/core/storage';
+import { MastraEditor } from '@mastra/editor';
 import {
   MastraStorageExporter,
   MastraPlatformExporter,
@@ -42,11 +43,14 @@ export const mastra = new Mastra({
   },
   storage: new MastraCompositeStore({
     id: 'composite-storage',
-    default: new PostgresStore({ id: 'mastra-storage', connectionString: SUPABASE_DB_URL }),
+    // max abaixo do pool_size do Supabase Session Pooler (15), senão o pg.Pool
+    // (default max: 20) estoura o pooler com EMAXCONNSESSION sob concorrência.
+    default: new PostgresStore({ id: 'mastra-storage', connectionString: SUPABASE_DB_URL, max: 10 }),
     domains: {
       observability: await new DuckDBStore().getStore('observability'),
     },
   }),
+  editor: new MastraEditor(),
   observability: new Observability({
     configs: {
       default: {
