@@ -45,13 +45,13 @@ api:
     periodSeconds: 10
     failureThreshold: 3
   ingress:
-    enabled: false
+    enabled: true
     className: traefik
     hosts:
       - host: luna.buyticketbrasil.com
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /webhooks/zendesk
+            pathType: Exact
   externalSecret:
     enabled: true
     secretKey: /aws/workloads-production/luna/secrets
