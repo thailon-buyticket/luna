@@ -11,8 +11,8 @@ api:
   image:
     repository: "199420984430.dkr.ecr.us-east-1.amazonaws.com/luna"
     pullPolicy: IfNotPresent
-    tag: "bootstrap"
-    digest: ""
+    tag: "8af8748"
+    digest: "sha256:50592cd77f219f9402e33c796caff193b02e945a6469873e7497473235b16293"
   serviceAccount:
     create: true
     name: luna
@@ -69,7 +69,7 @@ api:
     enabled: true
     env: production
     service: luna
-    version: "bootstrap"
+    version: "8af8748"
   lifecycle:
     enabled: true
     preStop:
