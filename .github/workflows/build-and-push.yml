@@ -106,6 +106,7 @@ jobs:
 
           docker buildx build \
             --platform linux/amd64 \
+            --pull \
             --provenance=false \
             --push \
             -t "$image_uri:$image_tag" \

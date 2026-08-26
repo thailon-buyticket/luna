@@ -75,9 +75,9 @@ api:
     preStop:
       exec:
         command:
-          - /bin/sh
-          - -c
-          - sleep 10
+          - /nodejs/bin/node
+          - -e
+          - setTimeout(() => {}, 10000)
   scheduling:
     workloadClass: general
   nodeSelector:
