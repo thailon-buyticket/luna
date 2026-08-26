@@ -44,7 +44,7 @@ export const mastra = new Mastra({
     id: 'composite-storage',
     default: new PostgresStore({ id: 'mastra-storage', connectionString: SUPABASE_DB_URL }),
     domains: {
-      observability: await new DuckDBStore().getStore('observability'),
+      observability: await new DuckDBStore({ path: ':memory:', memoryLimit: '256MB' }).getStore('observability'),
     },
   }),
   observability: new Observability({
