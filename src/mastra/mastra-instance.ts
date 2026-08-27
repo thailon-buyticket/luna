@@ -30,7 +30,7 @@ const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL },
 
 export const mastra = new Mastra({
   bundler: {
-    externals: ['@duckdb/node-bindings'],
+    externals: ['@duckdb/node-bindings', 'dd-trace'],
   },
   logger: new PinoLogger({ name: 'Mastra', level: 'info' }),
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
