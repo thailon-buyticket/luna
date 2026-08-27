@@ -33,7 +33,10 @@ export const mastra = new Mastra({
   bundler: {
     externals: ['@duckdb/node-bindings', 'dd-trace'],
   },
-  logger: new PinoLogger({ name: 'Mastra', level: 'info' }),
+  // prettyPrint tem default `true` no PinoLogger do Mastra (mesmo com NODE_ENV=production) — sem
+  // isso, cada log sai formatado em várias linhas em vez de um JSON compacto por entrada, o que
+  // infla bastante o log do container (sem rotação configurada no host, isso vira disco sumindo).
+  logger: new PinoLogger({ name: 'Mastra', level: 'info', prettyPrint: process.env.NODE_ENV !== 'production' }),
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
   server: {
     // Toda rota exige "Authorization: Bearer <LUNA_API_KEY>", exceto o webhook do Zendesk

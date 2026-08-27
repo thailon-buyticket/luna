@@ -5,10 +5,10 @@ interface MediaAnalysisAgentConfig {
   id: string;
   name: string;
   description: string;
-  model: string;
+  model: ConstructorParameters<typeof Agent>[0]['model'];
   instructions: string;
   /** Builds the multimodal content part for the media being analyzed (image vs file, mime type, etc). */
-  buildMediaPart: (mediaUrl: string, mediaType: string | undefined) => ImagePart | FilePart;
+  buildMediaPart: (mediaUrl: URL, mediaType: string | undefined) => ImagePart | FilePart;
 }
 
 /**
@@ -29,7 +29,7 @@ export function createMediaAnalysisAgent(config: MediaAnalysisAgentConfig) {
     const { text } = await agent.generate([
       {
         role: 'user',
-        content: [config.buildMediaPart(mediaUrl, mediaType), { type: 'text', text: `Mensagem do usuário: ${userMessage || 'nada'}` }],
+        content: [config.buildMediaPart(new URL(mediaUrl), mediaType), { type: 'text', text: `Mensagem do usuário: ${userMessage || 'nada'}` }],
       },
     ]);
 

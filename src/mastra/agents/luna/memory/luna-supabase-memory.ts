@@ -3,7 +3,6 @@ import { PostgresStore } from '@mastra/pg';
 import { env } from '../../../config/env';
 import { requireEnv } from '../../../config/require-env';
 import { lunaWorkingMemorySchema } from '../../luna-working-memory/schema';
-import { conversationMemoryExtractor } from './conversation-memory-extractor';
 
 const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL }, 'Luna memory storage');
 
@@ -15,13 +14,10 @@ export const lunaSupabaseMemory = new Memory({
   options: {
     generateTitle: false,
     lastMessages: 15,
-    observationalMemory: {
-      model: 'openai/gpt-4.1-mini',
-      observation: {
-        extract: [conversationMemoryExtractor],
-      },
-      scope:'thread'
-    },
+    // `observationalMemory` está desativado de propósito neste projeto: cada tool-call/tool-result
+    // da conversa (playbooks inteiros, artigos de F.A.Q.) entrava como JSON no payload do Observer,
+    // deixando as chamadas gigantes e derrubando a taxa de sucesso. Ver `conversation-memory-extractor.ts`
+    // pra reativar — só religar se o usuário pedir explicitamente, não por conta própria.
     workingMemory: {
       enabled: true,
       scope: 'thread',

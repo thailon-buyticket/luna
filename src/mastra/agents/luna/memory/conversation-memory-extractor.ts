@@ -4,6 +4,11 @@ import { conversationMemorySchema } from './conversation-memory-schema';
 import { classifyCustomerType } from '../../luna-customer-type/luna-customer-type-agent';
 import { messagesToTranscript } from './transcript';
 
+// Desativado de propósito: não está mais registrado em `luna-supabase-memory.ts` (que desligou
+// `observationalMemory` inteiro — ver comentário lá) porque o payload do Observer virou JSON
+// gigante de tool-calls/tool-results, derrubando a taxa de sucesso. A tabela `conversation_memory`
+// no Supabase para de ser alimentada enquanto isso ficar assim. Só religar se o usuário pedir
+// explicitamente — não reative por conta própria.
 export const conversationMemoryExtractor = new Extractor({
   name: 'Conversation memory',
   instructions: `Extraia o seguinte sobre esta conversa:
