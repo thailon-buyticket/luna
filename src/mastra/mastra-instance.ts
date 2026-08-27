@@ -1,3 +1,4 @@
+import 'dd-trace/init.js';
 import { Mastra } from '@mastra/core/mastra';
 import { SimpleAuth } from '@mastra/core/server';
 import { PostgresStore } from '@mastra/pg';
