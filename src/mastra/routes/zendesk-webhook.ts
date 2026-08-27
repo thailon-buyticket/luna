@@ -108,7 +108,9 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     )
     zendesk
       .connectHuman(appId, zendeskPayload.conversationId, {
-        tags: buildHandoffTags('luna-interrompida', null),
+        // Sem BASE_HANDOFF_TAGS ("luna", "luna-transferencia") aqui: contato bloqueado ou
+        // bypass não é uma transferência normal da Luna, é a Luna nem entrando na conversa.
+        tags: ['luna-interrompida'],
         ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
       })
       .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));

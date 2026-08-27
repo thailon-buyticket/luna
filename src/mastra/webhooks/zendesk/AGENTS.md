@@ -23,6 +23,8 @@ Ponto de entrada único pro fluxo "mensagem nova do Zendesk chegou" (WhatsApp vi
 ## Tags de handoff (`buildHandoffTags`)
 
 - `luna-interrompida` — humano da empresa assumiu a conversa, OU contato está bloqueado, OU mensagem bateu com uma palavra-chave de bypass (mesma tag pros três casos, não se distingue tabulação por origem — só o log de conversa diferencia).
+  - Empresa assumiu a conversa: vai via `buildHandoffTags`, então leva também `luna` e `luna-transferencia` (`BASE_HANDOFF_TAGS`).
+  - Contato bloqueado ou bypass: manda só `['luna-interrompida']`, sem `BASE_HANDOFF_TAGS` — a Luna nem chegou a entrar na conversa nesses casos, então não faz sentido marcar como se ela tivesse transferido.
 - `luna-erro` — Luna esgotou as tentativas sem gerar resposta.
 - Motivo dado pelo guardrail (`connect_human`, `reply_and_connect_human`) quando é a própria Luna decidindo transferir.
 - Tags de tabulação (`createTicketTagsWithAI`, agentes de `agents/tags/`) somadas só nesse último caso — nunca nos handoffs de `luna-interrompida`/`luna-erro`.
