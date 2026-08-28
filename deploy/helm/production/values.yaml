@@ -52,6 +52,12 @@ api:
         paths:
           - path: /webhooks/zendesk
             pathType: Exact
+          - path: /luna/ask
+            pathType: Exact
+          - path: /luna/history
+            pathType: Exact
+          - path: /health
+            pathType: Exact
   externalSecret:
     enabled: true
     secretKey: /aws/workloads-production/luna/secrets
