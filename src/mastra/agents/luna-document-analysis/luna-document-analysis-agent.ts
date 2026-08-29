@@ -6,7 +6,7 @@ const { agent: documentAnalysisAgent, analyze: analyzeDocument } = createMediaAn
   name: 'Luna Document Analysis',
   description: 'Descreve documentos/arquivos enviados pelo cliente para servir de input pra Luna.',
   instructions: buildDocumentAnalysisPrompt(),
-  model: 'openai/gpt-4.1-mini',
+  model: [{ model: 'openai/gpt-4.1-mini', maxRetries: 1, modelSettings: { timeout: { stepMs: 30_000 } } }],
   buildMediaPart: (mediaUrl, mediaType) => ({ type: 'file', data: mediaUrl, mediaType: mediaType ?? 'application/pdf' }),
 });
 

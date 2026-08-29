@@ -11,12 +11,18 @@ RUN bun run build
 
 # Runtime stage: the .mastra/output directory is a self-contained Node server,
 # so the final image only needs Node, not Bun.
-FROM node:22-bookworm-slim AS runtime
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=build /app/.mastra/output ./
+COPY --from=build --chown=65532:65532 /app/.mastra/output ./
 ENV MASTRA_STUDIO_PATH=./studio
 
+USER 65532:65532
+
 EXPOSE 4111
-CMD ["node", "index.mjs"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["/nodejs/bin/node", "-e", "fetch('http://127.0.0.1:4111/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+CMD ["--import", "dd-trace/initialize.mjs", "index.mjs"]

@@ -1,3 +1,4 @@
+import 'dd-trace/init.js';
 import { Mastra } from '@mastra/core/mastra';
 import { SimpleAuth } from '@mastra/core/server';
 import { PostgresStore } from '@mastra/pg';
@@ -31,9 +32,12 @@ const { SUPABASE_DB_URL } = requireEnv({ SUPABASE_DB_URL: env.SUPABASE_DB_URL },
 
 export const mastra = new Mastra({
   bundler: {
-    externals: ['@duckdb/node-bindings'],
+    externals: ['@duckdb/node-bindings', 'dd-trace'],
   },
-  logger: new PinoLogger({ name: 'Mastra', level: 'info' }),
+  // prettyPrint tem default `true` no PinoLogger do Mastra (mesmo com NODE_ENV=production) — sem
+  // isso, cada log sai formatado em várias linhas em vez de um JSON compacto por entrada, o que
+  // infla bastante o log do container (sem rotação configurada no host, isso vira disco sumindo).
+  logger: new PinoLogger({ name: 'Mastra', level: 'info', prettyPrint: process.env.NODE_ENV !== 'production' }),
   agents: { luna, lunaGuardrail, customerTypeAgent, lunaWorkingMemoryAgent, imageAnalysisAgent, documentAnalysisAgent },
   server: {
     // Toda rota exige "Authorization: Bearer <LUNA_API_KEY>", exceto o webhook do Zendesk
@@ -47,7 +51,7 @@ export const mastra = new Mastra({
     // (default max: 20) estoura o pooler com EMAXCONNSESSION sob concorrência.
     default: new PostgresStore({ id: 'mastra-storage', connectionString: SUPABASE_DB_URL, max: 10 }),
     domains: {
-      observability: await new DuckDBStore().getStore('observability'),
+      observability: await new DuckDBStore({ path: ':memory:', memoryLimit: '256MB' }).getStore('observability'),
     },
   }),
   editor: new MastraEditor(),
