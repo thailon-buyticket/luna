@@ -18,14 +18,16 @@ Ponto de entrada único pro fluxo "mensagem nova do Zendesk chegou" (WhatsApp vi
 8. **Normaliza mídia pra texto** (`transformMessageInTextWithAI`) — texto passa direto; imagem/áudio/arquivo vão pra análise por IA/transcrição; vídeo vira o placeholder `[Usuário enviou um vídeo, confirme o recebimento]` (mensagem instrutiva pra Luna, não um texto pro cliente).
 9. **Buffer** (`bufferMessage`) — junta mensagens curtas em sequência do mesmo cliente numa única pergunta pra Luna. Janela padrão **35s** (`LUNA_MESSAGE_BUFFER_MS`), reinicia a cada mensagem nova na mesma conversa.
 10. **Chama a Luna** (`askLunaWithFallback`) — até 3 tentativas (`LUNA_ASK_MAX_ATTEMPTS`) em erro transitório. Esgotou as tentativas → mensagem de erro técnico + aviso de alto volume, transfere com tag `luna-erro`.
-11. **Guardrail** — `reply`/`reply_and_connect_human` envia a resposta; `connect_human`/`reply_and_connect_human` envia aviso de handoff (se configurado no `business/`), resolve tags de tabulação (`resolveTabulacaoTags`) e chama `connectHuman`.
+11. **Guardrail** — `reply`/`reply_and_connect_human` envia a resposta; `connect_human`/`reply_and_connect_human` envia aviso de handoff (se configurado no `business/`), resolve tags de tabulação (`createTicketTagsWithAI`) e chama `connectHuman`.
 
 ## Tags de handoff (`buildHandoffTags`)
 
 - `luna-interrompida` — humano da empresa assumiu a conversa, OU contato está bloqueado, OU mensagem bateu com uma palavra-chave de bypass (mesma tag pros três casos, não se distingue tabulação por origem — só o log de conversa diferencia).
+  - Empresa assumiu a conversa: vai via `buildHandoffTags`, então leva também `luna` e `luna-transferencia` (`BASE_HANDOFF_TAGS`).
+  - Contato bloqueado ou bypass: manda só `['luna-interrompida']`, sem `BASE_HANDOFF_TAGS` — a Luna nem chegou a entrar na conversa nesses casos, então não faz sentido marcar como se ela tivesse transferido.
 - `luna-erro` — Luna esgotou as tentativas sem gerar resposta.
 - Motivo dado pelo guardrail (`connect_human`, `reply_and_connect_human`) quando é a própria Luna decidindo transferir.
-- Tags de tabulação (`resolveTabulacaoTags`, agentes de `agents/tags/`) somadas só nesse último caso — nunca nos handoffs de `luna-interrompida`/`luna-erro`.
+- Tags de tabulação (`createTicketTagsWithAI`, agentes de `agents/tags/`) somadas só nesse último caso — nunca nos handoffs de `luna-interrompida`/`luna-erro`.
 
 ## Regras
 
@@ -33,7 +35,7 @@ Ponto de entrada único pro fluxo "mensagem nova do Zendesk chegou" (WhatsApp vi
 - **Evento de webhook inválido nunca deve ser descartado em silêncio.** Sempre logar (`logWarning`) antes do `continue` — se o Zendesk mudar o formato do payload, isso precisa aparecer no log, não só desaparecer.
 - **Sticker não gera pergunta pra Luna nem entra no buffer.** Se precisar mudar esse comportamento no futuro, o ponto certo é o `if (zendeskPayload.mediaType === 'sticker')` logo antes de `transformMessageInTextWithAI` em `onNewZendeskMessageReceived`.
 - **Mensagem da empresa nunca passa pelo buffer.** Handoff é sempre imediato quando um humano escreve na conversa, mesmo que a Luna esteja no meio de uma janela de buffer pra aquele cliente.
-- Logs de tabulação (`resolveTabulacaoTags`) devem sempre indicar o motivo de não gerar tags (histórico indisponível/vazio) e, quando gerar, quais tags foram resolvidas — isso é o que o time de suporte usa pra auditar por que um handoff chegou sem tabulação.
+- Logs de tabulação (`createTicketTagsWithAI`) devem sempre indicar o motivo de não gerar tags (histórico indisponível/vazio) e, quando gerar, quais tags foram resolvidas — isso é o que o time de suporte usa pra auditar por que um handoff chegou sem tabulação.
 
 ## Não incluído (ainda)
 

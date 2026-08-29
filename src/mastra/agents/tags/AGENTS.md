@@ -5,9 +5,10 @@ Leia este arquivo antes de alterar qualquer coisa nesta pasta.
 ## Objetivo
 
 Analisa TODO o histórico de um atendimento e retorna TODAS as tags com evidência clara — zero, uma
-ou várias, nunca "a melhor" — pra mandar pro Zendesk junto com o handoff pra humano. São **2
-agentes** (era um fluxo antigo de 3 agents em n8n, reduzido a 2), que rodam em paralelo e cujos
-resultados são unidos (`resolveTabulacaoTags` em `routes/zendesk-webhook.ts`):
+ou várias, nunca "a melhor" — pra mandar pro Zendesk junto com o handoff pra humano (e, no
+`/luna/ask`, só pra log). São **2 agentes** (era um fluxo antigo de 3 agents em n8n, reduzido a 2),
+que rodam em paralelo e cujos resultados são unidos (`createTicketTagsWithAI`, nesta pasta em
+`create-ticket-tags-with-ai.ts`):
 
 1. **Tags de operação** (`tags-agent.ts`) — tags de tabulação (ex.: `ajuda_com_venda`,
    `nao_recebi_o_ingresso`) a partir do `tipo_cliente` e da transcript. Só existe lista própria pra
@@ -22,9 +23,12 @@ resultados são unidos (`resolveTabulacaoTags` em `routes/zendesk-webhook.ts`):
 
 ## Relação com outros agentes
 
-- Chamados por `routes/zendesk-webhook.ts` (`resolveTabulacaoTags`), só quando o guardrail decide
-  `connect_human`/`reply_and_connect_human`. Tags de operação só entram se
-  `working_memory.tipo_cliente` (vindo de `agents/luna-working-memory/`) já for conhecido; tags
+- Chamados via `create-ticket-tags-with-ai.ts` (`createTicketTagsWithAI`) por dois pontos: o handoff do
+  `routes/zendesk-webhook.ts`, só quando o guardrail decide `connect_human`/
+  `reply_and_connect_human`; e o endpoint `/luna/ask` (`routes/luna-api.ts`), disparado em
+  background (não bloqueia a resposta, não entra no JSON) sempre que a requisição vem com
+  `memory` (thread/resource) — sem isso não tem histórico pra buscar. Tags de operação só entram
+  se `working_memory.tipo_cliente` (vindo de `agents/luna-working-memory/`) já for conhecido; tags
   especiais sempre rodam (não dependem do tipo).
 - Tags de operação reaproveitam a descrição do `tipo_cliente` de
   `agents/luna-customer-type/category-descriptions.ts` (`customerTypeCategoryDescriptions[tipo]`)
@@ -78,6 +82,10 @@ resultados são unidos (`resolveTabulacaoTags` em `routes/zendesk-webhook.ts`):
 - `special-tags-agent.ts` — `specialTagsAgent` (registrado em `mastra-instance.ts`) e
   `classifySpecialTags(transcript)`: busca as tags "priority" do HiveOps, monta o prompt e chama
   `specialTagsAgent.generate(...)`.
+- `create-ticket-tags-with-ai.ts` — `createTicketTagsWithAI(conversationId, resourceId, workingMemory)`:
+  busca o histórico da conversa via `Luna.getMessageHistory`, monta a transcript e chama os dois
+  agentes acima em paralelo, deduplicando o resultado. Usado pelo handoff do Zendesk e pelo
+  `/luna/ask`.
 
 ## Notas de desenvolvimento
 

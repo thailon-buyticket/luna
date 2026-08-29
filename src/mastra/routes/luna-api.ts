@@ -1,6 +1,8 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { z } from 'zod';
 import { Luna } from '../agents/luna/luna';
+import { createTicketTagsWithAI } from '../agents/tags/create-ticket-tags-with-ai';
+import { logConversationError } from '../helpers/logger';
 import { parseOrBadRequest } from './validate';
 
 const bodySchema = z.object({
@@ -19,8 +21,9 @@ export const lunaAsk = registerApiRoute('/luna/ask', {
   openapi: {
     summary: 'Gera a resposta da Luna para uma mensagem de cliente',
     description:
-      'Endpoint simplificado para integrações externas (ex: n8n). Retorna a resposta pronta pro cliente ' +
-      'e o resultado do guardrail em um único JSON plano.',
+      'Endpoint simplificado para integrações externas (ex: n8n). Retorna a resposta pronta pro cliente, ' +
+      'o resultado do guardrail e as tags de tabulação em um único JSON plano. Tags só saem preenchidas ' +
+      'quando `memory` é informado e a ação do guardrail é `connect_human` ou `reply_and_connect_human`.',
     tags: ['Luna'],
   },
   handler: async (c) => {
@@ -30,7 +33,22 @@ export const lunaAsk = registerApiRoute('/luna/ask', {
 
     const { answer, guardrail, working_memory } = await Luna.ask(messages, { memory, requestContext });
 
-    return c.json({ answer, guardrail, working_memory });
+    // Mesmas tags de tabulação do handoff do Zendesk (`createTicketTagsWithAI`, ver
+    // `agents/tags/AGENTS.md`), aqui entrando na própria resposta. Só faz sentido tabular quando a
+    // conversa vai (ou pode ir) pra um humano — mesmo critério do handoff do Zendesk, ver
+    // `routes/zendesk-webhook.ts`. Sem `memory` não tem thread/resource pra buscar histórico, então
+    // não dá pra resolver — fica `[]`. Se a resolução falhar, loga o erro e também cai pra `[]` em
+    // vez de derrubar a resposta.
+    const requiresHandoff = guardrail?.action === 'connect_human' || guardrail?.action === 'reply_and_connect_human';
+    const tags =
+      memory && requiresHandoff
+        ? await createTicketTagsWithAI(memory.thread, memory.resource, working_memory).catch((error) => {
+            logConversationError(memory.thread, 'falha ao resolver tags de tabulação', error);
+            return [];
+          })
+        : [];
+
+    return c.json({ answer, guardrail, working_memory, tags });
   },
 });
 

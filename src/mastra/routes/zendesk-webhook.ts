@@ -1,8 +1,6 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { Luna } from '../agents/luna/luna';
-import type { MessageExchange } from '../agents/luna/memory/transcript';
-import { classifyHandoffTags } from '../agents/tags/tags-agent';
-import { classifySpecialTags } from '../agents/tags/special-tags-agent';
+import { createTicketTagsWithAI } from '../agents/tags/create-ticket-tags-with-ai';
 import { resolveBusinessByAppId } from '../business/registry';
 import { env } from '../config/env';
 import { requireEnv } from '../config/require-env';
@@ -110,7 +108,9 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     )
     zendesk
       .connectHuman(appId, zendeskPayload.conversationId, {
-        tags: buildHandoffTags('luna-interrompida', null),
+        // Sem BASE_HANDOFF_TAGS ("luna", "luna-transferencia") aqui: contato bloqueado ou
+        // bypass não é uma transferência normal da Luna, é a Luna nem entrando na conversa.
+        tags: ['luna-interrompida'],
         ticketFields: buildHandoffTicketFields(zendeskPayload.conversationId, null),
       })
       .then(() => logConversation(zendeskPayload.conversationId, "luna desativada da conversa" ));
@@ -118,7 +118,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
   }
 
   if (zendeskPayload.mediaType === 'sticker') {
-    logConversation(zendeskPayload.conversationId, 'sticker recebido, ignorando');
+    logConversation(zendeskPayload.conversationId, 'sticker recebido e ignorado');
     return;
   }
 
@@ -145,18 +145,20 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
     if (!askResult) {
       // Luna esgotou as tentativas e não conseguiu gerar nenhuma resposta — o cliente não pode
       // ficar sem resposta, então avisamos e passamos pra um humano em vez de deixar a conversa muda.
-      const fallbackNotice = `${PREDEFINED_MESSAGES.error.technical_issue} ${PREDEFINED_MESSAGES.business.high_volume}`;
-      await zendesk.sendMessage(merged.appId, merged.conversationId, fallbackNotice);
-      await zendesk.connectHuman(merged.appId, merged.conversationId, {
-        tags: buildHandoffTags('luna-erro', null),
-        ticketFields: buildHandoffTicketFields(merged.conversationId, null),
-      });
+      
+      //O codigo esta comentado pq temos um outro fluxo de retry que roda no n7n. Pega as pessoas sem respostas e reenvia pra Luan
+      // const fallbackNotice = `${PREDEFINED_MESSAGES.error.technical_issue} ${PREDEFINED_MESSAGES.business.high_volume}`;
+      // await zendesk.sendMessage(merged.appId, merged.conversationId, fallbackNotice);
+      // await zendesk.connectHuman(merged.appId, merged.conversationId, {
+      //   tags: buildHandoffTags('luna-erro', null),
+      //   ticketFields: buildHandoffTicketFields(merged.conversationId, null),
+      // });
       return;
     }
 
     const { answer, guardrail, working_memory } = askResult;
     const action = guardrail?.action ?? 'reply';
-    logConversation(merged.conversationId, `resposta da Luna (guardrail: ${action}): "${answer}"`);
+    logConversation(merged.conversationId, `Luna decidiu responder: "${answer}"`);
 
     if ((action === 'reply' || action === 'reply_and_connect_human') && answer) {
       await zendesk.sendMessage(merged.appId, merged.conversationId, answer);
@@ -166,7 +168,7 @@ async function onNewZendeskMessageReceived(appId: string, payload: ZendeskConver
       const notice = resolveBusinessByAppId(merged.appId).getHandoffNoticeMessage();
       if (notice) await zendesk.sendMessage(merged.appId, merged.conversationId, notice);
 
-      const tabulacaoTags = await resolveTabulacaoTags(merged.conversationId, merged.resourceId, working_memory);
+      const tabulacaoTags = await createTicketTagsWithAI(merged.conversationId, merged.resourceId, working_memory);
       await zendesk.connectHuman(merged.appId, merged.conversationId, {
         tags: buildHandoffTags(action, working_memory, tabulacaoTags),
         ticketFields: buildHandoffTicketFields(merged.conversationId, working_memory),
@@ -205,45 +207,6 @@ async function askLunaWithFallback(merged: AskLunaInput): Promise<Awaited<Return
   return null;
 }
 
-function exchangesToTranscript(history: MessageExchange[]): string {
-  return history.map((exchange) => `user: ${exchange.user_message}\nassistant: ${exchange.bot_answer}`).join('\n');
-}
-
-// Tags de tabulação do atendimento — os 2 agentes de `agents/tags/` (ver AGENTS.md lá): tags de
-// operação (`classifyHandoffTags`, precisa do `tipo_cliente`) e tags especiais/críticas
-// (`classifySpecialTags`, cross-cutting, roda mesmo sem `tipo_cliente` conhecido). Rodam em
-// paralelo; o resultado é deduplicado, então tag que os dois concordarem não repete no Zendesk.
-// Se não der pra achar o histórico da conversa, o handoff segue sem tag nenhuma.
-async function resolveTabulacaoTags(
-  conversationId: string,
-  resourceId: string,
-  workingMemory: Awaited<ReturnType<typeof Luna.ask>>['working_memory'],
-): Promise<string[]> {
-  const history = await Luna.getMessageHistory(conversationId, resourceId);
-  if (history.status !== 'ok') {
-    logConversation(conversationId, 'histórico da conversa indisponível, handoff sem tags de tabulação');
-    return [];
-  }
-
-  const transcript = exchangesToTranscript(history.history);
-  if (!transcript) {
-    logConversation(conversationId, 'histórico vazio, handoff sem tags de tabulação');
-    return [];
-  }
-
-  const customerType = workingMemory?.tipo_cliente;
-  logConversation(conversationId, `resolvendo tags de tabulação (tipo_cliente: ${customerType ?? 'desconhecido'})`);
-
-  const [operacaoTags, specialTags] = await Promise.all([
-    customerType ? classifyHandoffTags(transcript, customerType) : Promise.resolve([]),
-    classifySpecialTags(transcript),
-  ]);
-
-  const tags = [...new Set([...operacaoTags, ...specialTags])];
-  logConversation(conversationId, `tags de tabulação resolvidas: ${tags.length ? tags.join(', ') : 'nenhuma'}`);
-  return tags;
-}
-
 // Um contato é considerado bloqueado quando existe um usuário no Zendesk com o telefone dele
 // que também carrega alguma tag de handoff (ex.: "golpe", "vip-humano" etc, configuráveis via
 // HiveOps). A busca cobre telefone com e sem "+" e o `externalId` do webhook como variantes,
@@ -277,8 +240,8 @@ async function isContactBlocked(conversationId: string, phone: string | null, ex
 }
 
 // Palavras-chave que, quando a mensagem do cliente é exatamente igual (sem variação), pulam a
-// Luna e vão direto pro humano — igual a um contato bloqueado. Só "Vamo!" por enquanto.
-const BYPASS_AGENT_KEYWORDS = ['Vamos!'];
+// Luna e vão direto pro humano — Isso para as mensagens ativas e o usuário clica num botão ou mensagens ativas do time de social
+const BYPASS_AGENT_KEYWORDS = ['Vamos!', 'Preciso de suporte!', 'Vamos falar!', 'Pode trocar o ingresso!', 'Prefiro o cancelamento!', 'Sim, tenho o ingresso!', 'Não tenho mais!'];
 
 function isMessageKeywordToBypassAgent(message: string): boolean {
   return BYPASS_AGENT_KEYWORDS.includes(message);

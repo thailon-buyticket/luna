@@ -2,7 +2,7 @@ import { env } from '../../config/env';
 import { logConversationError } from '../../helpers/logger';
 import type { AskLunaInput } from './schema';
 
-const DEFAULT_BUFFER_MS = 35000;
+const DEFAULT_BUFFER_MS = 38000;
 
 interface PendingConversation {
   messages: AskLunaInput[];
