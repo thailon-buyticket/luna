@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "latest",
-    "mastra": "latest",
+    "mastra": "1.25.1",
     "typescript": "^6.0.3"
   }
 }
